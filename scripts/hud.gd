@@ -35,7 +35,7 @@ func _ready() -> void:
 	move_child(hp_bg, 0)
 
 	var hint := _make_label(Vector2(0, Config.ARENA_SIZE.y - 20.0), w, HORIZONTAL_ALIGNMENT_CENTER, 15)
-	hint.text = "Move: WASD / Arrows   ·   Fire: automatic   ·   Collect glowing allies   ·   R: restart"
+	hint.text = "Move: WASD / Arrows   ·   Fire: automatic   ·   Follow green arrows to find allies   ·   Red arrows = incoming enemies   ·   R: restart"
 	hint.modulate = Color(1, 1, 1, 0.55)
 
 	_build_gameover()

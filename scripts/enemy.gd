@@ -77,6 +77,8 @@ func take_damage(amount: float) -> void:
 	queue_redraw()
 	if hp <= 0.0:
 		_die()
+	else:
+		EventBus.enemy_hit.emit(global_position)
 
 func _die() -> void:
 	EventBus.enemy_killed.emit(global_position, score_value)

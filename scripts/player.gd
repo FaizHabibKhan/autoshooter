@@ -51,8 +51,8 @@ func _physics_process(delta: float) -> void:
 
 func _clamp_to_arena() -> void:
 	var m := Config.ARENA_MARGIN + body_radius
-	global_position.x = clampf(global_position.x, m, Config.ARENA_SIZE.x - m)
-	global_position.y = clampf(global_position.y, m, Config.ARENA_SIZE.y - m)
+	global_position.x = clampf(global_position.x, m, Config.WORLD_SIZE.x - m)
+	global_position.y = clampf(global_position.y, m, Config.WORLD_SIZE.y - m)
 
 # Called by enemies on contact.
 func take_damage(amount: float) -> void:

@@ -10,7 +10,7 @@ const AllyScene := preload("res://scenes/Ally.tscn")
 
 var _spawn_t: float = 0.6
 var _wave_t: float = 0.0
-var _pickup_t: float = 3.0   # first ally appears quickly so the hook lands early
+var _pickup_t: float = Config.PICKUP_FIRST_DELAY
 
 func _physics_process(delta: float) -> void:
 	if not GameManager.is_playing():
@@ -53,14 +53,25 @@ func _try_spawn_pickup() -> void:
 	container.add_child(a)
 
 func _ring_point() -> Vector2:
-	var center := Config.ARENA_SIZE * 0.5
+	# Spawn just off-screen around the PLAYER, so enemies always close in from
+	# every direction no matter where the player has wandered in the world.
+	var player: Node2D = get_tree().get_first_node_in_group("player")
+	var center: Vector2 = player.global_position if player != null else Config.WORLD_SIZE * 0.5
 	var ang := randf() * TAU
 	var r := Config.ARENA_SIZE.length() * 0.5 + Config.SPAWN_RING_PADDING
 	return center + Vector2.from_angle(ang) * r
 
 func _random_inside() -> Vector2:
-	var m := 90.0
-	return Vector2(
-		randf_range(m, Config.ARENA_SIZE.x - m),
-		randf_range(m, Config.ARENA_SIZE.y - m)
-	)
+	# Allies drop somewhere in the world, far from the player, so you have to
+	# explore to reach them.
+	var player: Node2D = get_tree().get_first_node_in_group("player")
+	var m := 120.0
+	var pos := Vector2.ZERO
+	for attempt in 12:
+		pos = Vector2(
+			randf_range(m, Config.WORLD_SIZE.x - m),
+			randf_range(m, Config.WORLD_SIZE.y - m)
+		)
+		if player == null or pos.distance_to(player.global_position) >= Config.PICKUP_MIN_DIST_FROM_PLAYER:
+			break
+	return pos

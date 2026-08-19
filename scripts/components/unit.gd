@@ -55,3 +55,4 @@ func _fire_at(target_pos: Vector2) -> void:
 	container.add_child(bullet)
 	bullet.global_position = global_position + dir * (body_radius + 4.0)
 	bullet.setup(dir, bullet_damage)
+	EventBus.shot_fired.emit(global_position)

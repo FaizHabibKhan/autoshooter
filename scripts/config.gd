@@ -22,10 +22,11 @@ func _bind(action: String, keys: Array) -> void:
 		ev.physical_keycode = k
 		InputMap.action_add_event(action, ev)
 
-# --- Arena -------------------------------------------------------------------
-const ARENA_SIZE := Vector2(1152, 648)   # matches the viewport
-const ARENA_MARGIN := 24.0               # keeps the player off the edges
-const SPAWN_RING_PADDING := 80.0         # how far outside the screen enemies spawn
+# --- View & World ------------------------------------------------------------
+const ARENA_SIZE := Vector2(1152, 648)   # the visible view / viewport size
+const WORLD_SIZE := Vector2(3600, 2400)  # the full explorable map (bigger than view)
+const ARENA_MARGIN := 24.0               # keeps the player off the world edges
+const SPAWN_RING_PADDING := 90.0         # how far outside the view enemies spawn
 
 # --- Collision layers (bit indices, 1-based like the Godot editor) -----------
 const LAYER_PLAYER := 1
@@ -74,8 +75,15 @@ const SPAWN_INTERVAL_START := 1.3
 const SPAWN_INTERVAL_MIN := 0.28
 const SPAWN_INTERVAL_DECAY := 0.06      # subtracted per wave
 const ENEMIES_PER_SPAWN_START := 1
-const PICKUP_INTERVAL := 9.0            # seconds between ally pickups appearing
-const PICKUP_MAX_ON_FIELD := 4
+const PICKUP_INTERVAL := 20.0           # allies are rare — long gap between spawns
+const PICKUP_MAX_ON_FIELD := 2         # few on the map at once, scattered far away
+const PICKUP_FIRST_DELAY := 6.0        # first ally appears fairly soon
+const PICKUP_MIN_DIST_FROM_PLAYER := 500.0  # spawn far so you must go find them
+
+# --- Off-screen indicators ---------------------------------------------------
+const INDICATOR_MARGIN := 46.0         # inset from the screen edge for arrows
+const INDICATOR_SIZE := 15.0           # arrow triangle size
+const INDICATOR_MAX_ENEMIES := 12      # cap enemy arrows to avoid clutter
 
 # --- Derived helpers ---------------------------------------------------------
 func enemy_health(wave: int) -> float:

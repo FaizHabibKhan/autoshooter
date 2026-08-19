@@ -7,9 +7,11 @@ extends Node
 
 # Gameplay
 signal enemy_killed(world_pos: Vector2, score_value: int)
+signal enemy_hit(world_pos: Vector2)
 signal enemy_spawned(enemy: Node)
 signal ally_collected(total_allies: int)
 signal ally_spawned(ally: Node)
+signal shot_fired(world_pos: Vector2)
 
 # Player
 signal player_damaged(current_hp: float, max_hp: float)

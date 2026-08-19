@@ -10,8 +10,11 @@ const PlayerScene := preload("res://scenes/Player.tscn")
 const SpawnerScript := preload("res://scripts/spawner.gd")
 const FXScript := preload("res://scripts/fx.gd")
 const HUDScript := preload("res://scripts/hud.gd")
+const IndicatorsScript := preload("res://scripts/indicators.gd")
+const MinimapScript := preload("res://scripts/minimap.gd")
 
 var _camera: Camera2D
+var _player: Node2D
 var _trauma: float = 0.0
 
 func _ready() -> void:
@@ -27,24 +30,37 @@ func _ready() -> void:
 	fx.name = "FX"
 	add_child(fx)
 
-	# --- player at arena center ---
+	# --- player at world center ---
 	var player := PlayerScene.instantiate()
-	player.position = Config.ARENA_SIZE * 0.5
+	player.position = Config.WORLD_SIZE * 0.5
 	add_child(player)
+	_player = player
 
 	# --- spawner ---
 	var spawner := SpawnerScript.new()
 	spawner.name = "Spawner"
 	add_child(spawner)
 
-	# --- camera (fixed, centered; only used for screen shake) ---
+	# --- camera: follows the player, clamped to the world edges ---
 	_camera = Camera2D.new()
-	_camera.position = Config.ARENA_SIZE * 0.5
+	_camera.position = _player.global_position
+	_camera.position_smoothing_enabled = true
+	_camera.position_smoothing_speed = 8.0
+	_camera.limit_left = 0
+	_camera.limit_top = 0
+	_camera.limit_right = int(Config.WORLD_SIZE.x)
+	_camera.limit_bottom = int(Config.WORLD_SIZE.y)
+	_camera.add_to_group("camera")
 	add_child(_camera)
 	_camera.make_current()
 
-	# --- HUD ---
+	# --- HUD + off-screen indicators ---
 	add_child(HUDScript.new())
+	var ind_layer := CanvasLayer.new()
+	ind_layer.layer = 9   # just under the HUD (layer 10)
+	add_child(ind_layer)
+	ind_layer.add_child(IndicatorsScript.new())
+	ind_layer.add_child(MinimapScript.new())
 
 	EventBus.request_screen_shake.connect(_add_trauma)
 	queue_redraw()
@@ -59,6 +75,10 @@ func _add_trauma(strength: float) -> void:
 	_trauma = minf(1.0, _trauma + strength / 20.0)
 
 func _process(delta: float) -> void:
+	# Camera follows the player (smoothing set on the camera does the easing).
+	if is_instance_valid(_player):
+		_camera.position = _player.global_position
+
 	# Screen shake: trauma^2 feels better than linear.
 	if _trauma > 0.0:
 		_trauma = maxf(0.0, _trauma - delta * 1.5)
@@ -71,8 +91,8 @@ func _process(delta: float) -> void:
 		GameManager.restart()
 
 func _draw() -> void:
-	# Background: fill, subtle grid, border. Drawn behind all children.
-	var size := Config.ARENA_SIZE
+	# Background: fill, subtle grid, border across the whole world.
+	var size := Config.WORLD_SIZE
 	draw_rect(Rect2(Vector2.ZERO, size), Config.COL_BG, true)
 	var step := 48.0
 	var x := 0.0
