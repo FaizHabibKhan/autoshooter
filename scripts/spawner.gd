@@ -1,0 +1,66 @@
+# =============================================================================
+#  spawner.gd  —  drives waves. Spawns enemies from a ring outside the screen
+#  ("from all directions") and periodically drops collectible allies inside.
+#  Difficulty scales with the wave number via Config helpers.
+# =============================================================================
+extends Node
+
+const EnemyScene := preload("res://scenes/Enemy.tscn")
+const AllyScene := preload("res://scenes/Ally.tscn")
+
+var _spawn_t: float = 0.6
+var _wave_t: float = 0.0
+var _pickup_t: float = 3.0   # first ally appears quickly so the hook lands early
+
+func _physics_process(delta: float) -> void:
+	if not GameManager.is_playing():
+		return
+
+	_wave_t += delta
+	if _wave_t >= Config.WAVE_DURATION:
+		_wave_t = 0.0
+		GameManager.set_wave(GameManager.wave + 1)
+
+	_spawn_t -= delta
+	if _spawn_t <= 0.0:
+		_spawn_enemies()
+		_spawn_t = Config.spawn_interval(GameManager.wave)
+
+	_pickup_t -= delta
+	if _pickup_t <= 0.0:
+		_try_spawn_pickup()
+		_pickup_t = Config.PICKUP_INTERVAL
+
+func _spawn_enemies() -> void:
+	var container := get_tree().get_first_node_in_group("enemy_container")
+	if container == null:
+		return
+	var count := Config.enemies_per_spawn(GameManager.wave)
+	for i in count:
+		var e := EnemyScene.instantiate()
+		e.wave = GameManager.wave
+		e.position = _ring_point()
+		container.add_child(e)
+
+func _try_spawn_pickup() -> void:
+	var container := get_tree().get_first_node_in_group("pickup_container")
+	if container == null:
+		return
+	if get_tree().get_nodes_in_group("pickups").size() >= Config.PICKUP_MAX_ON_FIELD:
+		return
+	var a := AllyScene.instantiate()
+	a.position = _random_inside()
+	container.add_child(a)
+
+func _ring_point() -> Vector2:
+	var center := Config.ARENA_SIZE * 0.5
+	var ang := randf() * TAU
+	var r := Config.ARENA_SIZE.length() * 0.5 + Config.SPAWN_RING_PADDING
+	return center + Vector2.from_angle(ang) * r
+
+func _random_inside() -> Vector2:
+	var m := 90.0
+	return Vector2(
+		randf_range(m, Config.ARENA_SIZE.x - m),
+		randf_range(m, Config.ARENA_SIZE.y - m)
+	)
