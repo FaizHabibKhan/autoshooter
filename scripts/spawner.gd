@@ -8,10 +8,12 @@ extends Node
 
 const EnemyScene := preload("res://scenes/Enemy.tscn")
 const AllyScene := preload("res://scenes/Ally.tscn")
+const HealthKitScene := preload("res://scenes/HealthKit.tscn")
 
 var _spawn_t: float = 0.6
 var _wave_t: float = 0.0
 var _pickup_t: float = Config.PICKUP_FIRST_DELAY
+var _health_t: float = Config.HEALTH_KIT_FIRST_DELAY
 var _level_time_left: float = 0.0
 var _last_shown_sec: int = -1
 
@@ -34,6 +36,12 @@ func _physics_process(delta: float) -> void:
 	if _pickup_t <= 0.0:
 		_try_spawn_pickup()
 		_pickup_t = Config.PICKUP_INTERVAL
+
+	# Health kits appear occasionally.
+	_health_t -= delta
+	if _health_t <= 0.0:
+		_try_spawn_health()
+		_health_t = Config.HEALTH_KIT_INTERVAL
 
 # --- ENDLESS -----------------------------------------------------------------
 func _tick_endless(delta: float) -> void:
@@ -98,6 +106,16 @@ func _try_spawn_pickup() -> void:
 	var a := AllyScene.instantiate()
 	a.position = _random_inside()
 	container.add_child(a)
+
+func _try_spawn_health() -> void:
+	var container := get_tree().get_first_node_in_group("pickup_container")
+	if container == null:
+		return
+	if get_tree().get_nodes_in_group("health_kits").size() >= Config.HEALTH_KIT_MAX:
+		return
+	var kit := HealthKitScene.instantiate()
+	kit.position = _random_inside()
+	container.add_child(kit)
 
 func _ring_point() -> Vector2:
 	# Spawn just off-screen around the PLAYER, so enemies always close in from

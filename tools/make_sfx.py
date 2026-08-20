@@ -109,8 +109,59 @@ def game_over():
     s = np.sin(2 * math.pi * np.cumsum(f) / SR) + 0.3 * np.sin(2 * math.pi * np.cumsum(f) / SR * 2)
     save("game_over.wav", s * env_exp(t.size, 3.0), gain=0.6)
 
+# --- ally weapon sounds ------------------------------------------------------
+def railgun():
+    d = 0.22
+    t = _t(d)
+    f = np.linspace(1400, 640, t.size)
+    tone = np.sin(2 * math.pi * np.cumsum(f) / SR)
+    buzz = 0.3 * np.sign(np.sin(2 * math.pi * 95 * t))
+    noise = 0.2 * np.random.uniform(-1, 1, t.size)
+    save("railgun.wav", (tone + buzz + noise) * env_exp(t.size, 6.0), gain=0.5)
+
+def rocket_fire():
+    d = 0.3
+    t = _t(d)
+    noise = np.random.uniform(-1, 1, t.size)
+    f = np.linspace(110, 300, t.size)
+    body = np.sin(2 * math.pi * np.cumsum(f) / SR)
+    save("rocket_fire.wav", (0.7 * noise + 0.4 * body) * env_ad(t.size, attack=0.02), gain=0.5)
+
+def explosion():
+    d = 0.5
+    t = _t(d)
+    noise = np.random.uniform(-1, 1, t.size)
+    f = np.linspace(160, 40, t.size)
+    body = np.sin(2 * math.pi * np.cumsum(f) / SR)
+    save("explosion.wav", (0.8 * noise + 0.7 * body) * env_exp(t.size, 4.0), gain=0.85)
+
+def sniper():
+    d = 0.18
+    t = _t(d)
+    tone = np.sin(2 * math.pi * 1200 * t)
+    noise = np.random.uniform(-1, 1, t.size)
+    save("sniper.wav", (0.6 * tone + 0.7 * noise) * env_exp(t.size, 18.0), gain=0.7)
+
+def flame():
+    d = 0.22
+    t = _t(d)
+    noise = np.random.uniform(-1, 1, t.size)
+    amod = 0.6 + 0.4 * np.sin(2 * math.pi * 30 * t)
+    save("flame.wav", noise * amod * env_ad(t.size, attack=0.03), gain=0.4)
+
+def heal():
+    notes = [659.25, 987.77]  # E5, B5 — soft, reassuring
+    seg = 0.09
+    out = []
+    for fq in notes:
+        t = _t(seg)
+        s = np.sin(2 * math.pi * fq * t) + 0.3 * np.sin(2 * math.pi * fq * 2 * t)
+        out.append(s * env_ad(t.size, attack=0.006))
+    save("heal.wav", np.concatenate(out), gain=0.5)
+
 if __name__ == "__main__":
     np.random.seed(7)  # deterministic output
     shoot(); enemy_hit(); enemy_death(); ally_collect()
     player_hurt(); wave_cue(); game_over()
+    railgun(); rocket_fire(); explosion(); sniper(); flame(); heal()
     print("done")

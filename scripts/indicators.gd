@@ -33,6 +33,14 @@ func _draw() -> void:
 		if _is_offscreen(rel, halfw, halfh):
 			_draw_arrow(rel, center, halfw, halfh, Config.COL_ALLY_UNCOLLECTED)
 
+	# --- Health kits (green): every off-screen kit ---
+	for h in get_tree().get_nodes_in_group("health_kits"):
+		if not is_instance_valid(h):
+			continue
+		var hrel: Vector2 = h.global_position - cam_center
+		if _is_offscreen(hrel, halfw, halfh):
+			_draw_arrow(hrel, center, halfw, halfh, Config.COL_HEALTH)
+
 	# --- Enemies (red): only the nearest few off-screen, to avoid clutter ---
 	var offscreen: Array = []
 	for e in get_tree().get_nodes_in_group("enemies"):

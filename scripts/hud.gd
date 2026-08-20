@@ -19,6 +19,9 @@ var _btn_next: Button
 var _btn_retry: Button
 var _btn_menu: Button
 
+# Weapon picker (pick-on-collect)
+var _picker: Control
+
 const BAR_W := 320.0
 const BAR_H := 16.0
 
@@ -54,7 +57,10 @@ func _ready() -> void:
 	hint.modulate = Color(1, 1, 1, 0.55)
 
 	_build_overlay()
+	_build_picker()
 
+	EventBus.selection_started.connect(func(): _picker.visible = true)
+	EventBus.selection_ended.connect(func(): _picker.visible = false)
 	EventBus.score_changed.connect(func(s): _score_label.text = "Score: %d" % s)
 	EventBus.wave_changed.connect(_on_wave_changed)
 	EventBus.objective_changed.connect(func(t): _objective_label.text = t)
@@ -171,3 +177,71 @@ func _make_button(text: String) -> Button:
 	b.custom_minimum_size = Vector2(150, 48)
 	b.add_theme_font_size_override("font_size", 20)
 	return b
+
+# --- weapon picker -----------------------------------------------------------
+func _build_picker() -> void:
+	_picker = Control.new()
+	_picker.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_picker.visible = false
+	add_child(_picker)
+
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_picker.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_picker.add_child(center)
+
+	var vbox := VBoxContainer.new()
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_theme_constant_override("separation", 18)
+	center.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "CHOOSE A WEAPON"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 34)
+	vbox.add_child(title)
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	vbox.add_child(row)
+
+	for i in Config.ALLY_WEAPONS.size():
+		var wid: String = Config.ALLY_WEAPONS[i]
+		var col: Color = Config.WEAPONS[wid]["color"]
+		var b := Button.new()
+		b.text = "%d\n%s" % [i + 1, wid.to_upper()]
+		b.custom_minimum_size = Vector2(150, 90)
+		b.add_theme_font_size_override("font_size", 20)
+		b.add_theme_color_override("font_color", col)
+		b.add_theme_color_override("font_hover_color", Color.WHITE)
+		b.pressed.connect(func(): GameManager.confirm_selection(wid))
+		row.add_child(b)
+
+	var hint := Label.new()
+	hint.text = "Press 1–4 or click to pick · Esc to skip"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 16)
+	hint.modulate = Color(1, 1, 1, 0.7)
+	vbox.add_child(hint)
+
+func _input(event: InputEvent) -> void:
+	if not GameManager.is_choosing():
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		var handled := true
+		match event.keycode:
+			KEY_1: GameManager.confirm_selection(Config.ALLY_WEAPONS[0])
+			KEY_2: GameManager.confirm_selection(Config.ALLY_WEAPONS[1])
+			KEY_3: GameManager.confirm_selection(Config.ALLY_WEAPONS[2])
+			KEY_4: GameManager.confirm_selection(Config.ALLY_WEAPONS[3])
+			KEY_ESCAPE: GameManager.cancel_selection()
+			_: handled = false
+		if handled:
+			get_viewport().set_input_as_handled()

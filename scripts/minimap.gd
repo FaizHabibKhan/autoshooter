@@ -41,10 +41,15 @@ func _draw() -> void:
 		if is_instance_valid(a):
 			draw_circle(_to_mm(a.global_position, origin, scale), 3.0, Config.COL_ALLY_UNCOLLECTED)
 
-	# Collected allies (green).
+	# Collected allies (colored by their weapon).
 	for a in get_tree().get_nodes_in_group("allies"):
 		if is_instance_valid(a):
-			draw_circle(_to_mm(a.global_position, origin, scale), 2.0, Config.COL_ALLY)
+			draw_circle(_to_mm(a.global_position, origin, scale), 2.0, a.weapon_color)
+
+	# Health kits (green).
+	for h in get_tree().get_nodes_in_group("health_kits"):
+		if is_instance_valid(h):
+			draw_circle(_to_mm(h.global_position, origin, scale), 3.0, Config.COL_HEALTH)
 
 	# Player (blue), drawn last so it's always on top.
 	var player: Node2D = get_tree().get_first_node_in_group("player")

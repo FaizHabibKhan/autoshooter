@@ -50,6 +50,23 @@ const BULLET_DAMAGE := 25.0
 const BULLET_RADIUS := 5.0
 const BULLET_LIFETIME := 1.4
 
+# --- Weapons -----------------------------------------------------------------
+# The player uses "rifle"; each ally rolls one of ALLY_WEAPONS when collected.
+# kind drives the firing behaviour in unit.gd. Tune freely.
+#   bullet : straight single-target projectile (the default rifle)
+#   railgun: instant piercing beam — hits everything in a line
+#   rocket : slow projectile that explodes for radial damage on impact
+#   sniper : instant single shot, huge damage, very long range
+#   flame  : rapid short-range cone, low damage per tick (burns a group)
+var WEAPONS := {
+	"rifle":   {"kind": "bullet",  "color": Color("fff5b0"), "cooldown": 0.32, "damage": 25.0,  "range": 360.0, "speed": 720.0},
+	"railgun": {"kind": "railgun", "color": Color("b98bff"), "cooldown": 1.00, "damage": 55.0,  "range": 600.0, "width": 22.0},
+	"rocket":  {"kind": "rocket",  "color": Color("ff9f45"), "cooldown": 1.40, "damage": 30.0,  "range": 460.0, "speed": 340.0, "blast_radius": 95.0, "blast_damage": 60.0},
+	"sniper":  {"kind": "sniper",  "color": Color("7fe3ff"), "cooldown": 1.50, "damage": 160.0, "range": 760.0},
+	"flame":   {"kind": "flame",   "color": Color("ff6a2b"), "cooldown": 0.10, "damage": 7.0,   "range": 190.0, "cone_deg": 42.0},
+}
+var ALLY_WEAPONS := ["railgun", "rocket", "sniper", "flame"]
+
 # --- Allies ------------------------------------------------------------------
 const ALLY_RADIUS := 12.0
 const ALLY_COLLECT_RADIUS := 40.0
@@ -81,6 +98,14 @@ const PICKUP_INTERVAL := 20.0           # allies are rare — long gap between s
 const PICKUP_MAX_ON_FIELD := 2         # few on the map at once, scattered far away
 const PICKUP_FIRST_DELAY := 6.0        # first ally appears fairly soon
 const PICKUP_MIN_DIST_FROM_PLAYER := 500.0  # spawn far so you must go find them
+
+# --- Health kits -------------------------------------------------------------
+const HEALTH_KIT_INTERVAL := 24.0       # seconds between health-kit spawns
+const HEALTH_KIT_FIRST_DELAY := 16.0
+const HEALTH_KIT_MAX := 2               # max on the field at once
+const HEALTH_KIT_HEAL := 35.0           # HP restored per kit
+const HEALTH_KIT_RADIUS := 34.0         # pickup radius
+const COL_HEALTH := Color("6bff9e")
 
 # --- Sprites -----------------------------------------------------------------
 # On-screen scale for the 128px character frames. Tune to taste.

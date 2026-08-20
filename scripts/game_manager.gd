@@ -6,7 +6,7 @@
 # =============================================================================
 extends Node
 
-enum State { PLAYING, GAME_OVER, LEVEL_CLEARED, WON }
+enum State { PLAYING, GAME_OVER, LEVEL_CLEARED, WON, CHOOSING }
 enum Mode { ENDLESS, LEVELS }
 
 const GAME_SCENE := "res://scenes/Main.tscn"
@@ -20,6 +20,7 @@ var score: int = 0
 var wave: int = 1
 var ally_count: int = 0
 var waves_survived: int = 0
+var pending_ally: Node = null   # ally awaiting a weapon choice
 
 func _ready() -> void:
 	EventBus.enemy_killed.connect(_on_enemy_killed)
@@ -30,6 +31,7 @@ func _ready() -> void:
 # Called by Main._ready() every time the game scene loads.
 func reset_run() -> void:
 	state = State.PLAYING
+	pending_ally = null
 	score = 0
 	wave = 1
 	ally_count = 0
@@ -76,6 +78,40 @@ func set_wave(new_wave: int) -> void:
 
 func is_playing() -> bool:
 	return state == State.PLAYING
+
+func can_retry() -> bool:
+	return state == State.GAME_OVER or state == State.LEVEL_CLEARED or state == State.WON
+
+func is_choosing() -> bool:
+	return state == State.CHOOSING
+
+# --- ally weapon selection (pick-on-collect) ---------------------------------
+func begin_selection(ally: Node) -> void:
+	if state != State.PLAYING:
+		return
+	pending_ally = ally
+	state = State.CHOOSING
+	EventBus.selection_started.emit()
+
+func confirm_selection(weapon_id: String) -> void:
+	if state != State.CHOOSING:
+		return
+	var a := pending_ally
+	pending_ally = null
+	state = State.PLAYING
+	if is_instance_valid(a) and a.has_method("join_with"):
+		a.join_with(weapon_id)
+	EventBus.selection_ended.emit()
+
+func cancel_selection() -> void:
+	if state != State.CHOOSING:
+		return
+	var a := pending_ally
+	pending_ally = null
+	state = State.PLAYING
+	if is_instance_valid(a) and a.has_method("on_declined"):
+		a.on_declined()
+	EventBus.selection_ended.emit()
 
 # --- outcomes ----------------------------------------------------------------
 # Called by the spawner when a level's survive-timer runs out.

@@ -11,6 +11,7 @@ var state: AllyState = AllyState.WAITING
 var _order: int = 0          # collection order — used for a stable ring slot
 var _pulse: float = 0.0      # animation clock for the waiting marker
 var _anim: AnimatedSprite2D
+var _declined: bool = false  # true after the player skips this ally's picker
 
 const RING_SPIN := 0.6       # radians/sec the whole formation rotates
 
@@ -34,6 +35,7 @@ func _ready() -> void:
 	_anim.play("walk")
 	_anim.speed_scale = 0.0   # stands still until collected
 	add_child(_anim)
+	# Weapon is chosen by the player at pickup time (see join_with).
 
 func _physics_process(delta: float) -> void:
 	if not GameManager.is_playing():
@@ -45,8 +47,16 @@ func _physics_process(delta: float) -> void:
 	match state:
 		AllyState.WAITING:
 			_pulse += delta
-			if global_position.distance_to(player.global_position) <= Config.ALLY_COLLECT_RADIUS + Config.PLAYER_RADIUS:
-				_collect()
+			var d := global_position.distance_to(player.global_position)
+			if d > Config.ALLY_COLLECT_RADIUS * 1.6:
+				_declined = false   # reset once the player walks away
+			# Open the weapon picker when the player steps close (unless already
+			# skipped here, at the ally cap, or another picker is open).
+			if not _declined \
+					and GameManager.pending_ally == null \
+					and get_tree().get_nodes_in_group("allies").size() < Config.ALLY_MAX \
+					and d <= Config.ALLY_COLLECT_RADIUS + Config.PLAYER_RADIUS:
+				GameManager.begin_selection(self)
 		AllyState.FOLLOWING:
 			_follow(player, delta)
 			process_shooting(delta)
@@ -63,12 +73,17 @@ func _update_sprite() -> void:
 	elif player != null:
 		_anim.rotation = (player.global_position - global_position).angle()
 
-func _collect() -> void:
-	# Safety net for the ally cap (spawner also stops spawning at the cap).
+# Called by GameManager.confirm_selection() with the player's chosen weapon.
+func join_with(chosen_weapon: String) -> void:
 	if get_tree().get_nodes_in_group("allies").size() >= Config.ALLY_MAX:
 		return
 	state = AllyState.FOLLOWING
-	body_color = Config.COL_ALLY
+	set_weapon(chosen_weapon)
+	# Swap to the weapon-colored soldier sprite.
+	var wf := SpriteLib.get_frames("ally_" + chosen_weapon)
+	if wf != null:
+		_anim.sprite_frames = wf
+		_anim.play("walk")
 	_anim.speed_scale = 1.0   # comes to life once collected
 	remove_from_group("pickups")
 	add_to_group("allies")
@@ -76,7 +91,11 @@ func _collect() -> void:
 	var total := get_tree().get_nodes_in_group("allies").size()
 	_order = total
 	EventBus.ally_collected.emit(total)
-	EventBus.request_hit_flash.emit(global_position, Config.COL_ALLY)
+	EventBus.request_hit_flash.emit(global_position, weapon_color)
+
+# Called by GameManager.cancel_selection() when the player skips this ally.
+func on_declined() -> void:
+	_declined = true
 
 func _follow(player: Node2D, delta: float) -> void:
 	var allies := get_tree().get_nodes_in_group("allies")
@@ -103,6 +122,8 @@ func _draw() -> void:
 		draw_circle(Vector2.ZERO, Config.ALLY_COLLECT_RADIUS, Color(Config.COL_ALLY_UNCOLLECTED, 0.06 + 0.06 * p))
 		draw_arc(Vector2.ZERO, Config.ALLY_COLLECT_RADIUS, 0.0, TAU, 40, Color(Config.COL_ALLY_UNCOLLECTED, 0.30 + 0.2 * p), 2.0, true)
 	else:
-		# Green team glow + drop shadow while following.
-		draw_circle(Vector2.ZERO, body_radius + 8.0, Color(Config.COL_ALLY, 0.20))
+		# Weapon-colored glow + drop shadow while following, so you can read the
+		# mix of gun types at a glance; a small pip reinforces the weapon color.
+		draw_circle(Vector2.ZERO, body_radius + 8.0, Color(weapon_color, 0.22))
 		draw_circle(Vector2(0, body_radius * 0.5), body_radius * 0.85, Color(0, 0, 0, 0.20))
+		draw_circle(Vector2(0, -body_radius - 6.0), 3.0, weapon_color)

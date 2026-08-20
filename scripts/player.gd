@@ -16,6 +16,7 @@ func _ready() -> void:
 	add_to_group("player")
 	body_radius = Config.PLAYER_RADIUS
 	body_color = Config.COL_PLAYER
+	set_weapon("rifle")
 	z_index = 2   # draw the hero above enemies/allies
 
 	# On the player layer; masks nothing so enemies never block movement.
@@ -87,6 +88,10 @@ func take_damage(amount: float) -> void:
 	EventBus.request_screen_shake.emit(6.0)
 	if hp <= 0.0:
 		_die()
+
+func heal(amount: float) -> void:
+	hp = min(max_hp, hp + amount)
+	EventBus.player_damaged.emit(hp, max_hp)
 
 func _die() -> void:
 	if _anim != null:

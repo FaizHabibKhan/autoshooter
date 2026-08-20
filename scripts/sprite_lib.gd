@@ -16,7 +16,11 @@ const DEATH_FPS := 12.0
 var frames: Dictionary = {}   # kind (String) -> SpriteFrames
 
 func _ready() -> void:
-	for kind in ["player", "ally", "zombie"]:
+	var kinds := ["player", "ally", "zombie"]
+	# One recolored soldier per ally weapon (art/ally_<weapon>_*.png).
+	for w in Config.ALLY_WEAPONS:
+		kinds.append("ally_" + w)
+	for kind in kinds:
 		frames[kind] = _build(kind)
 
 func get_frames(kind: String) -> SpriteFrames:

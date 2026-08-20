@@ -84,10 +84,11 @@ def base_tile(kind, phase):
     c = FRAME * SS / 2
     if kind == "player":
         draw_soldier(d, c, c, S * SS, P_UNI, P_HELM, P_ACC, phase)
-    elif kind == "ally":
-        draw_soldier(d, c, c, S * SS, A_UNI, A_HELM, A_ACC, phase)
-    else:
+    elif kind == "zombie":
         draw_zombie(d, c, c, S * SS, phase)
+    else:
+        u, h, a = SOLDIER_COLORS[kind]
+        draw_soldier(d, c, c, S * SS, u, h, a, phase)
     return big.resize((FRAME, FRAME), Image.LANCZOS)
 
 def fade(im, factor):
@@ -129,8 +130,20 @@ def save(name, sheet):
     sheet.save(p)
     print("wrote", os.path.relpath(p), sheet.size)
 
+# Soldier color sets. "ally" is the neutral (uncollected) soldier; the four
+# ally_<weapon> variants recolor the uniform to match each gun's color so a
+# collected soldier visibly reads as its weapon.
+SOLDIER_COLORS = {
+    "player":       (P_UNI, P_HELM, P_ACC),
+    "ally":         (A_UNI, A_HELM, A_ACC),
+    "ally_railgun": (hx("6a46b8"), hx("452f86"), hx("cbb0ff")),
+    "ally_rocket":  (hx("c8702f"), hx("8a4c20"), hx("ffc48a")),
+    "ally_sniper":  (hx("2f86b0"), hx("205a80"), hx("bfeeff")),
+    "ally_flame":   (hx("c8452f"), hx("8a2f20"), hx("ffb08a")),
+}
+
 if __name__ == "__main__":
-    for kind in ("player", "ally", "zombie"):
+    for kind in list(SOLDIER_COLORS.keys()) + ["zombie"]:
         walk = [base_tile(kind, 2 * math.pi * i / WALK_FRAMES) for i in range(WALK_FRAMES)]
         death = [death_tile(kind, (i + 1) / DEATH_FRAMES) for i in range(DEATH_FRAMES)]
         save(f"{kind}_walk.png", strip(walk))

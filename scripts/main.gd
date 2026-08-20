@@ -87,7 +87,7 @@ func _process(delta: float) -> void:
 	else:
 		_camera.offset = Vector2.ZERO
 
-	if not GameManager.is_playing() and Input.is_action_just_pressed("restart"):
+	if GameManager.can_retry() and Input.is_action_just_pressed("restart"):
 		GameManager.retry()
 
 func _draw() -> void:

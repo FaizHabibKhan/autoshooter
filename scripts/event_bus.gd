@@ -12,6 +12,13 @@ signal enemy_spawned(enemy: Node)
 signal ally_collected(total_allies: int)
 signal ally_spawned(ally: Node)
 signal shot_fired(world_pos: Vector2)
+signal weapon_fired(kind: String, world_pos: Vector2)   # special ally weapons
+signal explosion(world_pos: Vector2)
+signal health_pickup(world_pos: Vector2)
+
+# Ally weapon selection (pick-on-collect)
+signal selection_started
+signal selection_ended
 
 # Player
 signal player_damaged(current_hp: float, max_hp: float)

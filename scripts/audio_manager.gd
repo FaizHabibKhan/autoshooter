@@ -31,6 +31,12 @@ func _ready() -> void:
 		"hurt":    load("res://audio/player_hurt.wav"),
 		"wave":    load("res://audio/wave.wav"),
 		"over":    load("res://audio/game_over.wav"),
+		"railgun": load("res://audio/railgun.wav"),
+		"rocket":  load("res://audio/rocket_fire.wav"),
+		"explosion": load("res://audio/explosion.wav"),
+		"sniper":  load("res://audio/sniper.wav"),
+		"flame":   load("res://audio/flame.wav"),
+		"heal":    load("res://audio/heal.wav"),
 	}
 	for i in POOL_SIZE:
 		var p := AudioStreamPlayer.new()
@@ -44,6 +50,9 @@ func _ready() -> void:
 	EventBus.player_damaged.connect(_on_player_damaged)
 	EventBus.wave_changed.connect(_on_wave_changed)
 	EventBus.game_over.connect(_on_game_over)
+	EventBus.weapon_fired.connect(_on_weapon_fired)
+	EventBus.explosion.connect(_on_explosion)
+	EventBus.health_pickup.connect(func(_pos): _play("heal", -3.0, 1.0, 1.0))
 	EventBus.game_restarted.connect(func(): _last_hp = Config.PLAYER_MAX_HP)
 
 func _now() -> float:
@@ -92,3 +101,21 @@ func _on_wave_changed(w: int) -> void:
 
 func _on_game_over(_score: int, _waves: int) -> void:
 	_play("over", -3.0, 1.0, 1.0)
+
+var _last_flame: float = -999.0
+
+func _on_weapon_fired(kind: String, _pos: Vector2) -> void:
+	match kind:
+		"railgun": _play("railgun", -9.0, 0.96, 1.06)
+		"rocket":  _play("rocket", -8.0, 0.95, 1.05)
+		"sniper":  _play("sniper", -7.0, 0.97, 1.05)
+		"flame":
+			# Rapid weapon — throttle so it reads as a steady jet, not a buzz.
+			var t := _now()
+			if t - _last_flame < 0.09:
+				return
+			_last_flame = t
+			_play("flame", -13.0, 0.95, 1.1)
+
+func _on_explosion(_pos: Vector2) -> void:
+	_play("explosion", -5.0, 0.92, 1.08)
