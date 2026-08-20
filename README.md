@@ -97,3 +97,20 @@ bullets/enemies at high counts, and a title screen.
 - Input actions are registered at runtime in `config.gd`, so the game never
   depends on the editor's InputMap serialization surviving a version bump.
 - Rendering uses the GL-compatibility backend for the widest hardware support.
+
+## Modes & limits (update)
+
+Two modes, chosen from the start menu (`scenes/Menu.tscn`, the new main scene):
+
+- **Endless** — the original infinite wave scaling. Survive and rack up score.
+- **Levels** — 10 hand-tuned stages (`Config.LEVELS`), each a "survive N
+  seconds" objective with rising enemy health / speed / spawn rate. Clearing
+  one unlocks a Level Complete screen (Next / Retry / Menu); clearing all 10
+  shows a win screen. Add a dictionary to `Config.LEVELS` to add a level — the
+  menu grid and progression adapt automatically.
+
+Safety caps to keep large stages smooth (both enforced at spawn time):
+
+- **Enemies alive:** `Config.ENEMY_MAX_ALIVE` (default **60**; raise to 75 for
+  denser swarms — separation is O(n²), so higher costs more per frame).
+- **Collected allies:** `Config.ALLY_MAX` (default **10**).

@@ -1,7 +1,8 @@
 # =============================================================================
-#  spawner.gd  —  drives waves. Spawns enemies from a ring outside the screen
-#  ("from all directions") and periodically drops collectible allies inside.
-#  Difficulty scales with the wave number via Config helpers.
+#  spawner.gd  —  drives both modes.
+#   ENDLESS: waves scale forever with GameManager.wave.
+#   LEVELS : a per-level survive timer + difficulty from Config.LEVELS.
+#  Enforces the enemy and ally caps so large stages stay smooth.
 # =============================================================================
 extends Node
 
@@ -11,11 +12,31 @@ const AllyScene := preload("res://scenes/Ally.tscn")
 var _spawn_t: float = 0.6
 var _wave_t: float = 0.0
 var _pickup_t: float = Config.PICKUP_FIRST_DELAY
+var _level_time_left: float = 0.0
+var _last_shown_sec: int = -1
+
+func _ready() -> void:
+	if GameManager.mode == GameManager.Mode.LEVELS:
+		_level_time_left = Config.level_survive_time(GameManager.level)
+		_emit_objective()
 
 func _physics_process(delta: float) -> void:
 	if not GameManager.is_playing():
 		return
 
+	if GameManager.mode == GameManager.Mode.LEVELS:
+		_tick_level(delta)
+	else:
+		_tick_endless(delta)
+
+	# Ally pickups behave the same in both modes.
+	_pickup_t -= delta
+	if _pickup_t <= 0.0:
+		_try_spawn_pickup()
+		_pickup_t = Config.PICKUP_INTERVAL
+
+# --- ENDLESS -----------------------------------------------------------------
+func _tick_endless(delta: float) -> void:
 	_wave_t += delta
 	if _wave_t >= Config.WAVE_DURATION:
 		_wave_t = 0.0
@@ -23,28 +44,54 @@ func _physics_process(delta: float) -> void:
 
 	_spawn_t -= delta
 	if _spawn_t <= 0.0:
-		_spawn_enemies()
-		_spawn_t = Config.spawn_interval(GameManager.wave)
+		var w := GameManager.wave
+		_spawn_batch(Config.enemies_per_spawn(w), Config.enemy_health(w), Config.enemy_speed(w))
+		_spawn_t = Config.spawn_interval(w)
 
-	_pickup_t -= delta
-	if _pickup_t <= 0.0:
-		_try_spawn_pickup()
-		_pickup_t = Config.PICKUP_INTERVAL
+# --- LEVELS ------------------------------------------------------------------
+func _tick_level(delta: float) -> void:
+	_level_time_left -= delta
+	if int(ceil(maxf(_level_time_left, 0.0))) != _last_shown_sec:
+		_emit_objective()
+	if _level_time_left <= 0.0:
+		GameManager.complete_level()
+		return
 
-func _spawn_enemies() -> void:
+	_spawn_t -= delta
+	if _spawn_t <= 0.0:
+		var lv := GameManager.level
+		_spawn_batch(Config.level_enemies_per_spawn(lv), Config.level_enemy_health(lv), Config.level_enemy_speed(lv))
+		_spawn_t = Config.level_spawn_interval(lv)
+
+func _emit_objective() -> void:
+	_last_shown_sec = int(ceil(maxf(_level_time_left, 0.0)))
+	EventBus.objective_changed.emit("Survive:  %d s" % _last_shown_sec)
+
+# --- shared spawning ---------------------------------------------------------
+func _spawn_batch(count: int, hp: float, speed: float) -> void:
 	var container := get_tree().get_first_node_in_group("enemy_container")
 	if container == null:
 		return
-	var count := Config.enemies_per_spawn(GameManager.wave)
+	# Enforce the hard cap on concurrent enemies.
+	var alive := get_tree().get_nodes_in_group("enemies").size()
+	var allowed := Config.ENEMY_MAX_ALIVE - alive
+	count = min(count, allowed)
+	if count <= 0:
+		return
 	for i in count:
 		var e := EnemyScene.instantiate()
-		e.wave = GameManager.wave
+		e.hp = hp
+		e.speed = speed
+		e.score_value = Config.ENEMY_TOUCH_SCORE
 		e.position = _ring_point()
 		container.add_child(e)
 
 func _try_spawn_pickup() -> void:
 	var container := get_tree().get_first_node_in_group("pickup_container")
 	if container == null:
+		return
+	# Never exceed the ally cap, and keep only a few on the field at once.
+	if get_tree().get_nodes_in_group("allies").size() >= Config.ALLY_MAX:
 		return
 	if get_tree().get_nodes_in_group("pickups").size() >= Config.PICKUP_MAX_ON_FIELD:
 		return

@@ -20,7 +20,10 @@ signal player_died
 # Meta / HUD
 signal score_changed(score: int)
 signal wave_changed(wave: int)
+signal objective_changed(text: String)          # level-mode objective (e.g. countdown)
 signal game_over(final_score: int, waves_survived: int)
+signal level_completed(level: int, final_score: int)
+signal game_won(final_score: int)
 signal game_restarted
 
 # Juice hooks (FX layer listens to these)

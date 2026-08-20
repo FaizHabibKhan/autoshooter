@@ -88,7 +88,7 @@ func _process(delta: float) -> void:
 		_camera.offset = Vector2.ZERO
 
 	if not GameManager.is_playing() and Input.is_action_just_pressed("restart"):
-		GameManager.restart()
+		GameManager.retry()
 
 func _draw() -> void:
 	# Background: fill, subtle grid, border across the whole world.

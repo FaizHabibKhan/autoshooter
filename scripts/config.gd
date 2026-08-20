@@ -56,7 +56,7 @@ const ALLY_COLLECT_RADIUS := 40.0
 const ALLY_FOLLOW_DISTANCE := 46.0      # radius of the ring formation
 const ALLY_FOLLOW_SPEED := 380.0
 const ALLY_FOLLOW_STIFFNESS := 9.0      # how eagerly allies snap to formation
-const ALLY_MAX := 12                    # formation slots before it just stacks
+const ALLY_MAX := 10                    # hard cap on collected allies (perf + balance)
 
 # --- Enemies -----------------------------------------------------------------
 const ENEMY_RADIUS := 14.0
@@ -68,6 +68,8 @@ const ENEMY_CONTACT_DAMAGE := 12.0
 const ENEMY_ATTACK_COOLDOWN := 0.6
 const ENEMY_SEPARATION := 26.0          # personal space to avoid perfect stacking
 const ENEMY_TOUCH_SCORE := 10
+const ENEMY_MAX_ALIVE := 60             # hard cap on concurrent enemies (keeps big
+                                        # stages smooth; bump to 75 for denser swarms)
 
 # --- Waves / spawning --------------------------------------------------------
 const WAVE_DURATION := 18.0             # seconds per wave
@@ -97,6 +99,48 @@ func spawn_interval(wave: int) -> float:
 
 func enemies_per_spawn(wave: int) -> int:
 	return ENEMIES_PER_SPAWN_START + int(float(wave - 1) / 3.0)
+
+# --- Level mode --------------------------------------------------------------
+# 10 hand-tuned levels. Each is a "survive N seconds" objective with rising
+# difficulty. Multipliers scale the base enemy stats/spawn rate. Add more
+# dictionaries here to add levels — everything else adapts automatically.
+#   survive : seconds to survive to clear the level
+#   hp/spd  : enemy health / speed multiplier
+#   rate    : spawn-frequency multiplier (higher = enemies appear faster)
+#   burst   : extra enemies added to each spawn
+const LEVELS := [
+	{"survive": 25.0, "hp": 0.9,  "spd": 0.95, "rate": 1.0, "burst": 0},
+	{"survive": 30.0, "hp": 1.0,  "spd": 1.0,  "rate": 1.1, "burst": 0},
+	{"survive": 35.0, "hp": 1.15, "spd": 1.05, "rate": 1.25, "burst": 1},
+	{"survive": 40.0, "hp": 1.3,  "spd": 1.1,  "rate": 1.4, "burst": 1},
+	{"survive": 45.0, "hp": 1.5,  "spd": 1.15, "rate": 1.6, "burst": 1},
+	{"survive": 50.0, "hp": 1.7,  "spd": 1.2,  "rate": 1.8, "burst": 2},
+	{"survive": 55.0, "hp": 1.95, "spd": 1.28, "rate": 2.0, "burst": 2},
+	{"survive": 60.0, "hp": 2.2,  "spd": 1.35, "rate": 2.25, "burst": 3},
+	{"survive": 70.0, "hp": 2.6,  "spd": 1.45, "rate": 2.5, "burst": 3},
+	{"survive": 80.0, "hp": 3.0,  "spd": 1.55, "rate": 2.8, "burst": 4},
+]
+
+func level_count() -> int:
+	return LEVELS.size()
+
+func level_data(level: int) -> Dictionary:
+	return LEVELS[clampi(level - 1, 0, LEVELS.size() - 1)]
+
+func level_enemy_health(level: int) -> float:
+	return ENEMY_BASE_HP * float(level_data(level)["hp"])
+
+func level_enemy_speed(level: int) -> float:
+	return ENEMY_BASE_SPEED * float(level_data(level)["spd"])
+
+func level_spawn_interval(level: int) -> float:
+	return maxf(SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_START / float(level_data(level)["rate"]))
+
+func level_enemies_per_spawn(level: int) -> int:
+	return ENEMIES_PER_SPAWN_START + int(level_data(level)["burst"])
+
+func level_survive_time(level: int) -> float:
+	return float(level_data(level)["survive"])
 
 # --- Palette (kept central so re-skinning is one edit) -----------------------
 const COL_PLAYER := Color("4dd2ff")

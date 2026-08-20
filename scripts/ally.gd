@@ -45,6 +45,9 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 func _collect() -> void:
+	# Safety net for the ally cap (spawner also stops spawning at the cap).
+	if get_tree().get_nodes_in_group("allies").size() >= Config.ALLY_MAX:
+		return
 	state = AllyState.FOLLOWING
 	body_color = Config.COL_ALLY
 	remove_from_group("pickups")

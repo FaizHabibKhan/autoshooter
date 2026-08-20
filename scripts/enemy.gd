@@ -17,8 +17,8 @@ var body_radius: float = Config.ENEMY_RADIUS
 
 func _ready() -> void:
 	add_to_group("enemies")
-	hp = Config.enemy_health(wave)
-	speed = Config.enemy_speed(wave)
+	# hp / speed / score_value are set by the spawner before add_child (per mode
+	# and difficulty), so _ready no longer computes them.
 
 	# On the ENEMY layer (so bullets can find it); masks nothing so it never
 	# gets physically blocked — the swarm feel comes from manual separation.
