@@ -10,11 +10,13 @@ var hp: float = Config.PLAYER_MAX_HP
 
 var _hit_flash: float = 0.0
 var _aim_dir: Vector2 = Vector2.RIGHT
+var _anim: AnimatedSprite2D
 
 func _ready() -> void:
 	add_to_group("player")
 	body_radius = Config.PLAYER_RADIUS
 	body_color = Config.COL_PLAYER
+	z_index = 2   # draw the hero above enemies/allies
 
 	# On the player layer; masks nothing so enemies never block movement.
 	collision_layer = 0
@@ -26,6 +28,12 @@ func _ready() -> void:
 	circle.radius = body_radius
 	shape.shape = circle
 	add_child(shape)
+
+	_anim = AnimatedSprite2D.new()
+	_anim.sprite_frames = SpriteLib.get_frames("player")
+	_anim.scale = Vector2.ONE * Config.PLAYER_SPRITE_SCALE
+	_anim.play("walk")
+	add_child(_anim)
 
 	EventBus.player_damaged.emit(hp, max_hp)
 
@@ -45,8 +53,23 @@ func _physics_process(delta: float) -> void:
 	_clamp_to_arena()
 	process_shooting(delta)
 
+	_update_sprite(delta)
+
+func _update_sprite(delta: float) -> void:
+	# Face the nearest enemy if there is one, otherwise face movement.
+	var target := _find_nearest_enemy()
+	if target != null:
+		_aim_dir = (target.global_position - global_position).normalized()
+	elif velocity.length() > 10.0:
+		_aim_dir = velocity.normalized()
+	_anim.rotation = _aim_dir.angle()
+	# Walk faster the faster we move; nearly still when idle.
+	_anim.speed_scale = clampf(velocity.length() / Config.PLAYER_SPEED, 0.15, 1.4)
+	# Hit flash: briefly brighten the sprite.
 	if _hit_flash > 0.0:
 		_hit_flash = max(0.0, _hit_flash - delta * 4.0)
+	var f := _hit_flash * 0.9
+	_anim.modulate = Color(1.0 + f, 1.0 + f, 1.0 + f, 1.0)
 	queue_redraw()
 
 func _clamp_to_arena() -> void:
@@ -66,18 +89,13 @@ func take_damage(amount: float) -> void:
 		_die()
 
 func _die() -> void:
+	if _anim != null:
+		_anim.speed_scale = 1.0
+		_anim.play("death")
 	EventBus.request_screen_shake.emit(18.0)
 	EventBus.player_died.emit()
 
 func _draw() -> void:
-	# Aim indicator (points at the nearest enemy if there is one).
-	var target := _find_nearest_enemy()
-	if target != null:
-		_aim_dir = (target.global_position - global_position).normalized()
-	draw_line(Vector2.ZERO, _aim_dir * (body_radius + 10.0), Color(Config.COL_PLAYER, 0.5), 3.0)
-
-	# Body: soft aura, fill, outline. Flash white briefly when hit.
-	var col := Config.COL_PLAYER.lerp(Color.WHITE, _hit_flash)
-	draw_circle(Vector2.ZERO, body_radius + 6.0, Color(Config.COL_PLAYER, 0.12))
-	draw_circle(Vector2.ZERO, body_radius, col)
-	draw_arc(Vector2.ZERO, body_radius, 0.0, TAU, 32, Color.WHITE, 2.0, true)
+	# Soft aura + drop shadow under the sprite for depth.
+	draw_circle(Vector2.ZERO, body_radius + 7.0, Color(Config.COL_PLAYER, 0.10))
+	draw_circle(Vector2(0, body_radius * 0.5), body_radius * 0.9, Color(0, 0, 0, 0.22))

@@ -82,6 +82,12 @@ const PICKUP_MAX_ON_FIELD := 2         # few on the map at once, scattered far a
 const PICKUP_FIRST_DELAY := 6.0        # first ally appears fairly soon
 const PICKUP_MIN_DIST_FROM_PLAYER := 500.0  # spawn far so you must go find them
 
+# --- Sprites -----------------------------------------------------------------
+# On-screen scale for the 128px character frames. Tune to taste.
+const PLAYER_SPRITE_SCALE := 0.85
+const ALLY_SPRITE_SCALE := 0.72
+const ENEMY_SPRITE_SCALE := 0.82
+
 # --- Off-screen indicators ---------------------------------------------------
 const INDICATOR_MARGIN := 46.0         # inset from the screen edge for arrows
 const INDICATOR_SIZE := 15.0           # arrow triangle size

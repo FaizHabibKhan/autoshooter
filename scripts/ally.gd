@@ -10,6 +10,7 @@ enum AllyState { WAITING, FOLLOWING }
 var state: AllyState = AllyState.WAITING
 var _order: int = 0          # collection order — used for a stable ring slot
 var _pulse: float = 0.0      # animation clock for the waiting marker
+var _anim: AnimatedSprite2D
 
 const RING_SPIN := 0.6       # radians/sec the whole formation rotates
 
@@ -18,6 +19,7 @@ func _ready() -> void:
 	body_color = Config.COL_ALLY_UNCOLLECTED
 	collision_layer = 0
 	collision_mask = 0
+	z_index = 1
 	add_to_group("pickups")
 
 	var shape := CollisionShape2D.new()
@@ -25,6 +27,13 @@ func _ready() -> void:
 	circle.radius = body_radius
 	shape.shape = circle
 	add_child(shape)
+
+	_anim = AnimatedSprite2D.new()
+	_anim.sprite_frames = SpriteLib.get_frames("ally")
+	_anim.scale = Vector2.ONE * Config.ALLY_SPRITE_SCALE
+	_anim.play("walk")
+	_anim.speed_scale = 0.0   # stands still until collected
+	add_child(_anim)
 
 func _physics_process(delta: float) -> void:
 	if not GameManager.is_playing():
@@ -41,8 +50,18 @@ func _physics_process(delta: float) -> void:
 		AllyState.FOLLOWING:
 			_follow(player, delta)
 			process_shooting(delta)
+			_update_sprite()
 
 	queue_redraw()
+
+func _update_sprite() -> void:
+	# Face the nearest enemy while shooting; otherwise face the player.
+	var target := _find_nearest_enemy()
+	var player := get_tree().get_first_node_in_group("player")
+	if target != null:
+		_anim.rotation = (target.global_position - global_position).angle()
+	elif player != null:
+		_anim.rotation = (player.global_position - global_position).angle()
 
 func _collect() -> void:
 	# Safety net for the ally cap (spawner also stops spawning at the cap).
@@ -50,6 +69,7 @@ func _collect() -> void:
 		return
 	state = AllyState.FOLLOWING
 	body_color = Config.COL_ALLY
+	_anim.speed_scale = 1.0   # comes to life once collected
 	remove_from_group("pickups")
 	add_to_group("allies")
 	# Stable slot = how many allies exist right now.
@@ -78,16 +98,11 @@ func _follow(player: Node2D, delta: float) -> void:
 
 func _draw() -> void:
 	if state == AllyState.WAITING:
-		# Pulsing beacon so the player can spot uncollected allies easily.
+		# Pulsing beacon under the waiting soldier so the player can spot it.
 		var p := 0.5 + 0.5 * sin(_pulse * 4.0)
 		draw_circle(Vector2.ZERO, Config.ALLY_COLLECT_RADIUS, Color(Config.COL_ALLY_UNCOLLECTED, 0.06 + 0.06 * p))
-		draw_arc(Vector2.ZERO, Config.ALLY_COLLECT_RADIUS, 0.0, TAU, 40, Color(Config.COL_ALLY_UNCOLLECTED, 0.25 + 0.2 * p), 2.0, true)
-		draw_circle(Vector2.ZERO, body_radius, Config.COL_ALLY_UNCOLLECTED)
-		draw_arc(Vector2.ZERO, body_radius, 0.0, TAU, 24, Color.WHITE, 1.5, true)
-		# A small "+" to read as "pick me up".
-		draw_line(Vector2(-4, 0), Vector2(4, 0), Config.COL_BG, 2.0)
-		draw_line(Vector2(0, -4), Vector2(0, 4), Config.COL_BG, 2.0)
+		draw_arc(Vector2.ZERO, Config.ALLY_COLLECT_RADIUS, 0.0, TAU, 40, Color(Config.COL_ALLY_UNCOLLECTED, 0.30 + 0.2 * p), 2.0, true)
 	else:
-		draw_circle(Vector2.ZERO, body_radius + 4.0, Color(Config.COL_ALLY, 0.14))
-		draw_circle(Vector2.ZERO, body_radius, Config.COL_ALLY)
-		draw_arc(Vector2.ZERO, body_radius, 0.0, TAU, 24, Color.WHITE, 1.5, true)
+		# Soft green aura + drop shadow while following.
+		draw_circle(Vector2.ZERO, body_radius + 5.0, Color(Config.COL_ALLY, 0.12))
+		draw_circle(Vector2(0, body_radius * 0.5), body_radius * 0.85, Color(0, 0, 0, 0.20))
