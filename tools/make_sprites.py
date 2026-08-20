@@ -19,10 +19,11 @@ def hx(c):
     c = c.lstrip("#")
     return tuple(int(c[i:i+2], 16) for i in (0, 2, 4))
 
-SKIN, RIFLE, OUTLINE = hx("e8b58a"), hx("22262f"), hx("0a0c12")
-P_UNI, P_HELM, P_ACC = hx("2a4a74"), hx("1b3352"), hx("4dd2ff")
-A_UNI, A_HELM, A_ACC = hx("2f6b3a"), hx("234f2c"), hx("7CFF6B")
-Z_SKIN, Z_BODY, Z_DARK, Z_BLOOD = hx("8aa85f"), hx("55663c"), hx("39472a"), hx("8a2f2f")
+# Brighter, higher-contrast so characters pop against the dark game background.
+SKIN, RIFLE, OUTLINE = hx("f2c48f"), hx("2c313c"), hx("0c1018")
+P_UNI, P_HELM, P_ACC = hx("3d86e0"), hx("2b5a9e"), hx("9becff")   # player (bright blue)
+A_UNI, A_HELM, A_ACC = hx("4cc85a"), hx("2f8a3c"), hx("caffb0")   # ally (bright green)
+Z_SKIN, Z_BODY, Z_DARK, Z_BLOOD = hx("bfe07a"), hx("9bb85f"), hx("6b8040"), hx("d84540")  # zombie (brighter)
 
 def A(c, a=255):
     return c + (a,)

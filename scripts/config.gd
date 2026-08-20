@@ -84,9 +84,9 @@ const PICKUP_MIN_DIST_FROM_PLAYER := 500.0  # spawn far so you must go find them
 
 # --- Sprites -----------------------------------------------------------------
 # On-screen scale for the 128px character frames. Tune to taste.
-const PLAYER_SPRITE_SCALE := 0.85
-const ALLY_SPRITE_SCALE := 0.72
-const ENEMY_SPRITE_SCALE := 0.82
+const PLAYER_SPRITE_SCALE := 0.95
+const ALLY_SPRITE_SCALE := 0.80
+const ENEMY_SPRITE_SCALE := 0.90
 
 # --- Off-screen indicators ---------------------------------------------------
 const INDICATOR_MARGIN := 46.0         # inset from the screen edge for arrows

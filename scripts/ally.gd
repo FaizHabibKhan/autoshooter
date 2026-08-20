@@ -103,6 +103,6 @@ func _draw() -> void:
 		draw_circle(Vector2.ZERO, Config.ALLY_COLLECT_RADIUS, Color(Config.COL_ALLY_UNCOLLECTED, 0.06 + 0.06 * p))
 		draw_arc(Vector2.ZERO, Config.ALLY_COLLECT_RADIUS, 0.0, TAU, 40, Color(Config.COL_ALLY_UNCOLLECTED, 0.30 + 0.2 * p), 2.0, true)
 	else:
-		# Soft green aura + drop shadow while following.
-		draw_circle(Vector2.ZERO, body_radius + 5.0, Color(Config.COL_ALLY, 0.12))
+		# Green team glow + drop shadow while following.
+		draw_circle(Vector2.ZERO, body_radius + 8.0, Color(Config.COL_ALLY, 0.20))
 		draw_circle(Vector2(0, body_radius * 0.5), body_radius * 0.85, Color(0, 0, 0, 0.20))

@@ -96,6 +96,6 @@ func _die() -> void:
 	EventBus.player_died.emit()
 
 func _draw() -> void:
-	# Soft aura + drop shadow under the sprite for depth.
-	draw_circle(Vector2.ZERO, body_radius + 7.0, Color(Config.COL_PLAYER, 0.10))
+	# Team-colored glow + drop shadow so the hero always pops off the floor.
+	draw_circle(Vector2.ZERO, body_radius + 10.0, Color(Config.COL_PLAYER, 0.20))
 	draw_circle(Vector2(0, body_radius * 0.5), body_radius * 0.9, Color(0, 0, 0, 0.22))

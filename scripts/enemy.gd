@@ -113,5 +113,6 @@ func _die() -> void:
 	get_tree().create_timer(0.55).timeout.connect(queue_free)
 
 func _draw() -> void:
-	# Just a soft drop shadow; the sprite is the body now.
+	# Red threat glow + soft drop shadow under the sprite.
+	draw_circle(Vector2.ZERO, body_radius + 7.0, Color(Config.COL_ENEMY, 0.16))
 	draw_circle(Vector2(0, body_radius * 0.5), body_radius * 0.85, Color(0, 0, 0, 0.22))
