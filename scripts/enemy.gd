@@ -13,7 +13,10 @@ var score_value: int = 10
 
 var _attack_cd: float = 0.0
 var _hit_flash: float = 0.0
+var _bar_flash: float = 0.0
 var _dying: bool = false
+var is_boss: bool = false            # set by spawner before add_child
+var _max_hp: float = 1.0             # for the boss health bar
 var body_radius: float = Config.ENEMY_RADIUS
 var _anim: AnimatedSprite2D
 
@@ -21,10 +24,13 @@ func _ready() -> void:
 	add_to_group("enemies")
 	# hp / speed / score_value are set by the spawner before add_child (per mode
 	# and difficulty), so _ready no longer computes them.
+	if is_boss:
+		body_radius = Config.ENEMY_RADIUS * Config.BOSS_SCALE
+		z_index = 1
 
 	_anim = AnimatedSprite2D.new()
 	_anim.sprite_frames = SpriteLib.get_frames("zombie")
-	_anim.scale = Vector2.ONE * Config.ENEMY_SPRITE_SCALE
+	_anim.scale = Vector2.ONE * Config.ENEMY_SPRITE_SCALE * (Config.BOSS_SCALE if is_boss else 1.0)
 	_anim.play("walk")
 	add_child(_anim)
 
@@ -74,6 +80,10 @@ func _physics_process(delta: float) -> void:
 	var f := _hit_flash
 	_anim.modulate = Color(1.0 + f, 1.0 + f, 1.0 + f, 1.0)
 
+	if _bar_flash > 0.0:
+		_bar_flash = max(0.0, _bar_flash - delta * 3.0)
+		queue_redraw()
+
 # Push away from nearby enemies so they spread into a readable swarm.
 func _separation() -> Vector2:
 	var push := Vector2.ZERO
@@ -91,6 +101,8 @@ func take_damage(amount: float) -> void:
 		return
 	hp -= amount
 	_hit_flash = 1.0
+	_bar_flash = 1.0
+	queue_redraw()   # refresh the segmented health bar + flash
 	if hp <= 0.0:
 		_die()
 	else:
@@ -106,13 +118,21 @@ func _die() -> void:
 	set_collision_layer_value(Config.LAYER_ENEMY, false)
 	velocity = Vector2.ZERO
 	EventBus.enemy_killed.emit(global_position, score_value)
-	EventBus.request_screen_shake.emit(3.0)
+	EventBus.request_screen_shake.emit(8.0 if is_boss else 3.0)
 	if _anim != null:
 		_anim.play("death")
 	queue_redraw()
-	get_tree().create_timer(0.55).timeout.connect(queue_free)
+	get_tree().create_timer(0.7 if is_boss else 0.55).timeout.connect(queue_free)
 
 func _draw() -> void:
 	# Red threat glow + soft drop shadow under the sprite.
 	draw_circle(Vector2.ZERO, body_radius + 7.0, Color(Config.COL_ENEMY, 0.16))
 	draw_circle(Vector2(0, body_radius * 0.5), body_radius * 0.85, Color(0, 0, 0, 0.22))
+	# Segmented health bar — shown once damaged (always for bosses), flashes on hit.
+	if not _dying and (is_boss or hp < _max_hp):
+		var bw := body_radius * 2.2
+		var bh := 6.0 if is_boss else 5.0
+		var by := -body_radius - (18.0 if is_boss else 12.0)
+		var cells := HealthBar.cells_for(_max_hp)
+		HealthBar.draw_cells(self, Vector2(-bw * 0.5, by), Vector2(bw, bh),
+			hp / _max_hp, cells, _bar_flash, Config.COL_ENEMY)

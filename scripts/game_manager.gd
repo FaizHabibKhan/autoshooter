@@ -11,6 +11,7 @@ enum Mode { ENDLESS, LEVELS }
 
 const GAME_SCENE := "res://scenes/Main.tscn"
 const MENU_SCENE := "res://scenes/Menu.tscn"
+const SAVE_PATH := "user://save.cfg"
 
 var state: State = State.PLAYING
 var mode: Mode = Mode.ENDLESS
@@ -22,10 +23,27 @@ var ally_count: int = 0
 var waves_survived: int = 0
 var pending_ally: Node = null   # ally awaiting a weapon choice
 
+# Persistent progress
+var campaign_level: int = 1     # highest unlocked level (levels rise forever)
+var endless_best: int = 0       # best endless wave reached
+
 func _ready() -> void:
+	_load_progress()
 	EventBus.enemy_killed.connect(_on_enemy_killed)
 	EventBus.ally_collected.connect(_on_ally_collected)
 	EventBus.player_died.connect(_on_player_died)
+
+func _load_progress() -> void:
+	var c := ConfigFile.new()
+	if c.load(SAVE_PATH) == OK:
+		campaign_level = int(c.get_value("progress", "campaign_level", 1))
+		endless_best = int(c.get_value("progress", "endless_best", 0))
+
+func _save_progress() -> void:
+	var c := ConfigFile.new()
+	c.set_value("progress", "campaign_level", campaign_level)
+	c.set_value("progress", "endless_best", endless_best)
+	c.save(SAVE_PATH)
 
 # --- run lifecycle -----------------------------------------------------------
 # Called by Main._ready() every time the game scene loads.
@@ -46,14 +64,14 @@ func start_endless() -> void:
 
 func start_level(n: int) -> void:
 	mode = Mode.LEVELS
-	level = clampi(n, 1, Config.level_count())
+	level = maxi(1, n)   # levels are unbounded
 	_change(GAME_SCENE)
 
 func retry() -> void:
 	_change(GAME_SCENE)
 
 func next_level() -> void:
-	if mode == Mode.LEVELS and level < Config.level_count():
+	if mode == Mode.LEVELS:
 		level += 1
 	_change(GAME_SCENE)
 
@@ -118,12 +136,16 @@ func cancel_selection() -> void:
 func complete_level() -> void:
 	if state != State.PLAYING:
 		return
-	if level >= Config.level_count():
-		state = State.WON
-		EventBus.game_won.emit(score)
-	else:
-		state = State.LEVEL_CLEARED
-		EventBus.level_completed.emit(level, score)
+	campaign_level = maxi(campaign_level, level + 1)   # unlock the next level
+	_save_progress()
+	state = State.LEVEL_CLEARED
+	EventBus.level_completed.emit(level, score)
+
+# Called by the spawner in endless mode when a whole wave is cleared.
+func on_wave_cleared(cleared_wave: int) -> void:
+	endless_best = maxi(endless_best, cleared_wave)
+	_save_progress()
+	EventBus.wave_cleared.emit(cleared_wave)
 
 # --- signal handlers ---------------------------------------------------------
 func _on_enemy_killed(_pos: Vector2, score_value: int) -> void:

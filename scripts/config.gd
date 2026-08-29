@@ -118,60 +118,58 @@ const INDICATOR_MARGIN := 46.0         # inset from the screen edge for arrows
 const INDICATOR_SIZE := 15.0           # arrow triangle size
 const INDICATOR_MAX_ENEMIES := 12      # cap enemy arrows to avoid clutter
 
-# --- Derived helpers ---------------------------------------------------------
-func enemy_health(wave: int) -> float:
-	return ENEMY_BASE_HP + ENEMY_HP_PER_WAVE * float(wave - 1)
+# --- Boss ---------------------------------------------------------------------
+const BOSS_EVERY := 10                  # every Nth endless wave is a boss wave
+const BOSS_BASE_HP := 1400.0
+const BOSS_HP_PER_TIER := 0.35          # +35% per boss tier (wave 10, 20, 30…)
+const BOSS_SPEED := 46.0
+const BOSS_CONTACT_DAMAGE := 30.0
+const BOSS_SCALE := 2.4                 # sprite/ body multiplier
+const BOSS_SCORE := 500
+const BOSS_MINIONS := 6                 # minions that trickle in during a boss wave
 
-func enemy_speed(wave: int) -> float:
-	return ENEMY_BASE_SPEED + ENEMY_SPEED_PER_WAVE * float(wave - 1)
+func is_boss_wave(w: int) -> bool:
+	return w % BOSS_EVERY == 0
 
-func spawn_interval(wave: int) -> float:
-	return max(SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_START - SPAWN_INTERVAL_DECAY * float(wave - 1))
+func boss_health(w: int) -> float:
+	var tier := int(w / BOSS_EVERY)      # 1,2,3… for waves 10,20,30
+	return BOSS_BASE_HP * (1.0 + BOSS_HP_PER_TIER * float(tier - 1))
 
-func enemies_per_spawn(wave: int) -> int:
-	return ENEMIES_PER_SPAWN_START + int(float(wave - 1) / 3.0)
+# --- ENDLESS: wave-based (dynamic formulas) ----------------------------------
+# Wave 1 = 10 enemies, +5 each wave; enemies get healthier/faster; spawns are
+# trickled over time (see spawner). Waves rise forever.
+func wave_enemy_count(w: int) -> int:
+	return 10 + 5 * (w - 1)
 
-# --- Level mode --------------------------------------------------------------
-# 10 hand-tuned levels. Each is a "survive N seconds" objective with rising
-# difficulty. Multipliers scale the base enemy stats/spawn rate. Add more
-# dictionaries here to add levels — everything else adapts automatically.
-#   survive : seconds to survive to clear the level
-#   hp/spd  : enemy health / speed multiplier
-#   rate    : spawn-frequency multiplier (higher = enemies appear faster)
-#   burst   : extra enemies added to each spawn
-const LEVELS := [
-	{"survive": 25.0, "hp": 0.9,  "spd": 0.95, "rate": 1.0, "burst": 0},
-	{"survive": 30.0, "hp": 1.0,  "spd": 1.0,  "rate": 1.1, "burst": 0},
-	{"survive": 35.0, "hp": 1.15, "spd": 1.05, "rate": 1.25, "burst": 1},
-	{"survive": 40.0, "hp": 1.3,  "spd": 1.1,  "rate": 1.4, "burst": 1},
-	{"survive": 45.0, "hp": 1.5,  "spd": 1.15, "rate": 1.6, "burst": 1},
-	{"survive": 50.0, "hp": 1.7,  "spd": 1.2,  "rate": 1.8, "burst": 2},
-	{"survive": 55.0, "hp": 1.95, "spd": 1.28, "rate": 2.0, "burst": 2},
-	{"survive": 60.0, "hp": 2.2,  "spd": 1.35, "rate": 2.25, "burst": 3},
-	{"survive": 70.0, "hp": 2.6,  "spd": 1.45, "rate": 2.5, "burst": 3},
-	{"survive": 80.0, "hp": 3.0,  "spd": 1.55, "rate": 2.8, "burst": 4},
-]
+func wave_enemy_health(w: int) -> float:
+	return ENEMY_BASE_HP * (1.0 + 0.15 * float(w - 1))
 
-func level_count() -> int:
-	return LEVELS.size()
+func wave_enemy_speed(w: int) -> float:
+	return minf(ENEMY_BASE_SPEED * 2.2, ENEMY_BASE_SPEED * (1.0 + 0.04 * float(w - 1)))
 
-func level_data(level: int) -> Dictionary:
-	return LEVELS[clampi(level - 1, 0, LEVELS.size() - 1)]
+func wave_spawn_interval(w: int) -> float:
+	return maxf(0.25, 0.85 - 0.03 * float(w - 1))     # spawn a little faster each wave
 
-func level_enemy_health(level: int) -> float:
-	return ENEMY_BASE_HP * float(level_data(level)["hp"])
+func wave_per_spawn(w: int) -> int:
+	return 1 + int(float(w - 1) / 4.0)                # trickle grows slowly
 
-func level_enemy_speed(level: int) -> float:
-	return ENEMY_BASE_SPEED * float(level_data(level)["spd"])
+# --- LEVELS: dynamic / unbounded ---------------------------------------------
+# Levels are no longer a fixed list — difficulty is a function of the level
+# number, so they rise forever. Each level is a "survive N seconds" objective.
+func level_enemy_health(l: int) -> float:
+	return ENEMY_BASE_HP * (1.0 + 0.18 * float(l - 1))
 
-func level_spawn_interval(level: int) -> float:
-	return maxf(SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_START / float(level_data(level)["rate"]))
+func level_enemy_speed(l: int) -> float:
+	return minf(ENEMY_BASE_SPEED * 2.3, ENEMY_BASE_SPEED * (1.0 + 0.05 * float(l - 1)))
 
-func level_enemies_per_spawn(level: int) -> int:
-	return ENEMIES_PER_SPAWN_START + int(level_data(level)["burst"])
+func level_spawn_interval(l: int) -> float:
+	return maxf(0.30, 1.10 - 0.05 * float(l - 1))
 
-func level_survive_time(level: int) -> float:
-	return float(level_data(level)["survive"])
+func level_enemies_per_spawn(l: int) -> int:
+	return 1 + int(float(l - 1) / 3.0)
+
+func level_survive_time(l: int) -> float:
+	return minf(120.0, 25.0 + 5.0 * float(l - 1))
 
 # --- Palette (kept central so re-skinning is one edit) -----------------------
 const COL_PLAYER := Color("4dd2ff")

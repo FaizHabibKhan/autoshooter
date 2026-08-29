@@ -43,39 +43,84 @@ def circ(d, cx, cy, rad, col, outline=OUTLINE, ow=None):
         kw["outline"] = A(outline); kw["width"] = ow
     d.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], **kw)
 
+def light(col, f):
+    return tuple(min(255, int(c + (255 - c) * f)) for c in col[:3])
+
+def dark(col, f):
+    return tuple(max(0, int(c * (1 - f))) for c in col[:3])
+
 def draw_soldier(d, cx, cy, s, uni, helm, acc, phase):
     swing = math.sin(phase) * 0.30 * s
     cy += -abs(math.sin(phase)) * 0.05 * s
-    rr(d, cx - 0.62 * s, cy - 0.34 * s + swing, 0.20 * s, 0.13 * s, helm, r=0.1 * s)
-    rr(d, cx - 0.62 * s, cy + 0.34 * s - swing, 0.20 * s, 0.13 * s, helm, r=0.1 * s)
-    rr(d, cx + 0.75 * s, cy + 0.02 * s, 0.62 * s, 0.075 * s, RIFLE, r=0.05 * s)
-    rr(d, cx + 0.18 * s, cy + 0.16 * s, 0.14 * s, 0.14 * s, RIFLE, r=0.06 * s)
-    rr(d, cx, cy, 0.56 * s, 0.72 * s, uni, r=0.34 * s)
-    rr(d, cx - 0.1 * s, cy, 0.14 * s, 0.72 * s, acc, r=0.12 * s, ow=0)
-    rr(d, cx + 0.42 * s, cy - 0.30 * s, 0.30 * s, 0.12 * s, uni, r=0.1 * s)
-    rr(d, cx + 0.42 * s, cy + 0.30 * s, 0.30 * s, 0.12 * s, uni, r=0.1 * s)
-    circ(d, cx + 0.72 * s, cy - 0.30 * s, 0.10 * s, SKIN)
-    circ(d, cx + 0.72 * s, cy + 0.30 * s, 0.10 * s, SKIN)
-    circ(d, cx + 0.12 * s, cy, 0.36 * s, SKIN)
-    circ(d, cx - 0.02 * s, cy, 0.40 * s, helm)
-    circ(d, cx - 0.02 * s, cy, 0.12 * s, acc, outline=None, ow=0)
+    OW = int(3 * SS)
+    uni_l = light(uni, 0.30); uni_d = dark(uni, 0.28)
+    # boots (back)
+    rr(d, cx - 0.66 * s, cy - 0.34 * s + swing, 0.20 * s, 0.13 * s, helm, r=0.09 * s, ow=OW)
+    rr(d, cx - 0.66 * s, cy + 0.34 * s - swing, 0.20 * s, 0.13 * s, helm, r=0.09 * s, ow=OW)
+    # big gun: receiver + magazine + long barrel + muzzle
+    rr(d, cx + 0.30 * s, cy + 0.12 * s, 0.22 * s, 0.20 * s, dark(RIFLE, 0.18), r=0.06 * s, ow=OW)
+    rr(d, cx + 0.30 * s, cy + 0.36 * s, 0.09 * s, 0.16 * s, RIFLE, r=0.04 * s, ow=OW)
+    rr(d, cx + 0.98 * s, cy + 0.00 * s, 0.72 * s, 0.10 * s, RIFLE, r=0.05 * s, ow=OW)
+    rr(d, cx + 0.98 * s, cy - 0.045 * s, 0.66 * s, 0.028 * s, light(RIFLE, 0.45), r=0.02 * s, ow=0)
+    rr(d, cx + 1.66 * s, cy + 0.00 * s, 0.06 * s, 0.12 * s, dark(RIFLE, 0.3), r=0.03 * s, ow=OW)
+    # arms to the grip
+    rr(d, cx + 0.42 * s, cy - 0.28 * s, 0.34 * s, 0.13 * s, uni, r=0.1 * s, ow=OW)
+    rr(d, cx + 0.42 * s, cy + 0.26 * s, 0.30 * s, 0.12 * s, uni, r=0.1 * s, ow=OW)
+    circ(d, cx + 0.74 * s, cy - 0.28 * s, 0.11 * s, SKIN, ow=OW)
+    circ(d, cx + 0.40 * s, cy + 0.32 * s, 0.11 * s, SKIN, ow=OW)
+    # torso with top highlight + bottom shade
+    rr(d, cx, cy, 0.58 * s, 0.74 * s, uni, r=0.34 * s, ow=OW)
+    rr(d, cx + 0.04 * s, cy - 0.30 * s, 0.48 * s, 0.26 * s, uni_l, r=0.26 * s, ow=0)
+    rr(d, cx, cy + 0.52 * s, 0.54 * s, 0.20 * s, uni_d, r=0.24 * s, ow=0)
+    # accent shoulder pads + chest stripe
+    rr(d, cx + 0.06 * s, cy - 0.62 * s, 0.20 * s, 0.15 * s, acc, r=0.09 * s, ow=OW)
+    rr(d, cx + 0.06 * s, cy + 0.62 * s, 0.20 * s, 0.15 * s, acc, r=0.09 * s, ow=OW)
+    rr(d, cx - 0.06 * s, cy, 0.09 * s, 0.46 * s, acc, r=0.07 * s, ow=0)
+    # head + big helmet
+    circ(d, cx + 0.16 * s, cy, 0.32 * s, SKIN, ow=OW)
+    circ(d, cx - 0.02 * s, cy, 0.44 * s, helm, ow=OW)
+    rr(d, cx + 0.24 * s, cy, 0.08 * s, 0.22 * s, acc, r=0.05 * s, ow=0)     # visor band
+    d.ellipse([cx - 0.24 * s, cy - 0.36 * s, cx + 0.00 * s, cy - 0.08 * s], fill=(255, 255, 255, 70))
+    circ(d, cx - 0.06 * s, cy, 0.11 * s, acc, outline=None, ow=0)           # team dot
 
 def draw_zombie(d, cx, cy, s, phase):
     swing = math.sin(phase) * 0.34 * s
     cx += math.sin(phase * 0.5) * 0.05 * s
-    rr(d, cx - 0.58 * s, cy - 0.30 * s + swing, 0.18 * s, 0.12 * s, Z_DARK, r=0.08 * s)
-    rr(d, cx - 0.58 * s, cy + 0.30 * s - swing, 0.18 * s, 0.12 * s, Z_DARK, r=0.08 * s)
-    rr(d, cx + 0.55 * s, cy - 0.26 * s - 0.10 * s * math.sin(phase), 0.42 * s, 0.11 * s, Z_BODY, r=0.09 * s)
-    rr(d, cx + 0.55 * s, cy + 0.26 * s + 0.10 * s * math.sin(phase), 0.42 * s, 0.11 * s, Z_BODY, r=0.09 * s)
-    circ(d, cx + 0.96 * s, cy - 0.26 * s, 0.10 * s, Z_SKIN)
-    circ(d, cx + 0.96 * s, cy + 0.26 * s, 0.10 * s, Z_SKIN)
-    rr(d, cx, cy, 0.50 * s, 0.60 * s, Z_BODY, r=0.28 * s)
-    circ(d, cx - 0.12 * s, cy - 0.22 * s, 0.10 * s, Z_DARK, outline=None, ow=0)
-    circ(d, cx + 0.10 * s, cy + 0.18 * s, 0.08 * s, Z_BLOOD, outline=None, ow=0)
-    circ(d, cx + 0.20 * s, cy + 0.04 * s, 0.34 * s, Z_SKIN)
-    circ(d, cx + 0.30 * s, cy - 0.10 * s, 0.055 * s, OUTLINE, outline=None, ow=0)
-    circ(d, cx + 0.30 * s, cy + 0.14 * s, 0.055 * s, OUTLINE, outline=None, ow=0)
-    d.line([cx + 0.44 * s, cy - 0.02 * s, cx + 0.40 * s, cy + 0.10 * s], fill=A(Z_BLOOD), width=int(2 * SS))
+    OW = int(3 * SS)
+    # feet
+    rr(d, cx - 0.56 * s, cy - 0.30 * s + swing, 0.18 * s, 0.12 * s, Z_DARK, r=0.08 * s, ow=OW)
+    rr(d, cx - 0.56 * s, cy + 0.30 * s - swing, 0.18 * s, 0.12 * s, Z_DARK, r=0.08 * s, ow=OW)
+    # reaching arms + claws
+    rr(d, cx + 0.55 * s, cy - 0.26 * s - 0.10 * s * math.sin(phase), 0.44 * s, 0.12 * s, Z_BODY, r=0.09 * s, ow=OW)
+    rr(d, cx + 0.55 * s, cy + 0.26 * s + 0.10 * s * math.sin(phase), 0.44 * s, 0.12 * s, Z_BODY, r=0.09 * s, ow=OW)
+    for hy in (-0.26, 0.26):
+        hx = cx + 1.0 * s; yy = cy + hy * s
+        for k in (-1, 0, 1):
+            base = yy + k * 0.07 * s
+            d.polygon([(hx, base - 0.03 * s), (hx + 0.13 * s, base), (hx, base + 0.03 * s)],
+                      fill=A(Z_SKIN), outline=A(OUTLINE))
+    # blob body with shading
+    circ(d, cx, cy, 0.56 * s, Z_BODY, ow=OW)
+    d.ellipse([cx - 0.5 * s, cy + 0.08 * s, cx + 0.5 * s, cy + 0.62 * s], fill=A(dark(Z_BODY, 0.30), 170))
+    circ(d, cx - 0.12 * s, cy - 0.20 * s, 0.26 * s, light(Z_BODY, 0.16), outline=None, ow=0)
+    circ(d, cx - 0.18 * s, cy + 0.16 * s, 0.09 * s, Z_DARK, outline=None, ow=0)
+    # face
+    circ(d, cx + 0.22 * s, cy, 0.30 * s, Z_SKIN, ow=OW)
+    # big glowing red eyes
+    for ey in (-0.12, 0.12):
+        ex = cx + 0.31 * s; eyy = cy + ey * s
+        circ(d, ex, eyy, 0.12 * s, (255, 40, 40), outline=None, ow=0)
+        circ(d, ex, eyy, 0.075 * s, (255, 80, 80), ow=int(2 * SS))
+        circ(d, ex + 0.02 * s, eyy, 0.028 * s, (255, 210, 210), outline=None, ow=0)
+    # angry brows
+    d.line([cx + 0.18 * s, cy - 0.22 * s, cx + 0.34 * s, cy - 0.08 * s], fill=A(Z_DARK), width=int(3 * SS))
+    d.line([cx + 0.18 * s, cy + 0.22 * s, cx + 0.34 * s, cy + 0.08 * s], fill=A(Z_DARK), width=int(3 * SS))
+    # snarling mouth + teeth
+    d.line([(cx + 0.42 * s, cy - 0.13 * s), (cx + 0.47 * s, cy), (cx + 0.42 * s, cy + 0.13 * s)],
+           fill=(40, 18, 18, 255), width=int(3 * SS), joint="curve")
+    for ty in (-0.07, 0.0, 0.07):
+        d.polygon([(cx + 0.44 * s, cy + ty * s - 0.022 * s), (cx + 0.505 * s, cy + ty * s),
+                   (cx + 0.44 * s, cy + ty * s + 0.022 * s)], fill=(255, 255, 255, 235))
 
 def base_tile(kind, phase):
     """Render one character, centered, on a transparent FRAME tile."""

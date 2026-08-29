@@ -31,6 +31,8 @@ signal objective_changed(text: String)          # level-mode objective (e.g. cou
 signal game_over(final_score: int, waves_survived: int)
 signal level_completed(level: int, final_score: int)
 signal game_won(final_score: int)
+signal boss_wave(wave: int)
+signal wave_cleared(wave: int)
 signal game_restarted
 
 # Juice hooks (FX layer listens to these)

@@ -16,9 +16,15 @@ const MinimapScript := preload("res://scripts/minimap.gd")
 var _camera: Camera2D
 var _player: Node2D
 var _trauma: float = 0.0
+var _ground: Texture2D
+var _road: Texture2D
 
 func _ready() -> void:
 	GameManager.reset_run()
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED   # lets the ground tile
+	_ground = load("res://art/ground_tile.png")
+	_road = load("res://art/road_tile.png")
+	_build_decals()
 
 	# --- entity containers (found by group elsewhere) ---
 	_add_container("Projectiles", "projectiles")
@@ -62,8 +68,44 @@ func _ready() -> void:
 	ind_layer.add_child(IndicatorsScript.new())
 	ind_layer.add_child(MinimapScript.new())
 
+	# --- vignette overlay (mood) ---
+	var vig_layer := CanvasLayer.new()
+	vig_layer.layer = 8
+	var vig := TextureRect.new()
+	vig.texture = load("res://art/vignette.png")
+	vig.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vig.stretch_mode = TextureRect.STRETCH_SCALE
+	vig.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vig_layer.add_child(vig)
+	add_child(vig_layer)
+
 	EventBus.request_screen_shake.connect(_add_trauma)
 	queue_redraw()
+
+func _build_decals() -> void:
+	# Scatter static rubble/rock/crater sprites across the world, behind entities.
+	var decals := Node2D.new()
+	decals.name = "Decals"
+	add_child(decals)   # added first → renders under the entity containers
+	var texs := [
+		load("res://art/decal_rock.png"),
+		load("res://art/decal_rubble.png"),
+		load("res://art/decal_crater.png"),
+		load("res://art/decal_rock.png"),
+		load("res://art/decal_rubble.png"),
+	]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1337
+	for i in 90:
+		var sp := Sprite2D.new()
+		sp.texture = texs[rng.randi() % texs.size()]
+		sp.position = Vector2(
+			rng.randf_range(80.0, Config.WORLD_SIZE.x - 80.0),
+			rng.randf_range(80.0, Config.WORLD_SIZE.y - 80.0))
+		sp.rotation = rng.randf_range(0.0, TAU)
+		sp.scale = Vector2.ONE * rng.randf_range(0.7, 1.3)
+		sp.modulate = Color(1, 1, 1, rng.randf_range(0.85, 1.0))
+		decals.add_child(sp)
 
 func _add_container(node_name: String, group: String) -> void:
 	var n := Node2D.new()
@@ -91,16 +133,30 @@ func _process(delta: float) -> void:
 		GameManager.retry()
 
 func _draw() -> void:
-	# Background: fill, subtle grid, border across the whole world.
-	var size := Config.WORLD_SIZE
-	draw_rect(Rect2(Vector2.ZERO, size), Config.COL_BG, true)
-	var step := 48.0
+	# Wasteland battleground: tiled dirt, a cracked road cross, lane dashes,
+	# and a world border. (Rocks/rubble/craters are decal sprites; see above.)
+	var world := Config.WORLD_SIZE
+	if _ground != null:
+		draw_texture_rect(_ground, Rect2(Vector2.ZERO, world), true)
+	else:
+		draw_rect(Rect2(Vector2.ZERO, world), Config.COL_BG, true)
+
+	var cx := world.x * 0.5
+	var cy := world.y * 0.5
+	var hw := 150.0
+	if _road != null:
+		draw_texture_rect(_road, Rect2(0.0, cy - hw, world.x, hw * 2.0), true)
+		draw_texture_rect(_road, Rect2(cx - hw, 0.0, hw * 2.0, world.y), true)
+
+	# Faded lane dashes down the middle of each road.
+	var dash := Color(0.83, 0.76, 0.45, 0.45)
 	var x := 0.0
-	while x <= size.x:
-		draw_line(Vector2(x, 0), Vector2(x, size.y), Config.COL_GRID, 1.0)
-		x += step
+	while x < world.x:
+		draw_rect(Rect2(x, cy - 4.0, 42.0, 8.0), dash, true)
+		x += 92.0
 	var y := 0.0
-	while y <= size.y:
-		draw_line(Vector2(0, y), Vector2(size.x, y), Config.COL_GRID, 1.0)
-		y += step
-	draw_rect(Rect2(Vector2.ZERO, size), Config.COL_GRID, false, 2.0)
+	while y < world.y:
+		draw_rect(Rect2(cx - 4.0, y, 8.0, 42.0), dash, true)
+		y += 92.0
+
+	draw_rect(Rect2(Vector2.ZERO, world), Color(0, 0, 0, 0.55), false, 6.0)

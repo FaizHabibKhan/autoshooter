@@ -9,7 +9,10 @@ var _score_label: Label
 var _status_label: Label      # "Wave N" (endless) or "Level N" (levels)
 var _objective_label: Label   # level countdown; empty in endless
 var _ally_label: Label
-var _hp_fill: ColorRect
+var _hp_bar: Control
+var _last_hp: float = Config.PLAYER_MAX_HP
+
+const HpBar := preload("res://scripts/hud_healthbar.gd")
 
 # Result overlay
 var _overlay: Control
@@ -21,6 +24,10 @@ var _btn_menu: Button
 
 # Weapon picker (pick-on-collect)
 var _picker: Control
+
+# Boss banner
+var _boss_label: Label
+var _boss_t: float = 0.0
 
 const BAR_W := 320.0
 const BAR_H := 16.0
@@ -41,16 +48,18 @@ func _ready() -> void:
 
 	# Mode-specific initial text.
 	if GameManager.mode == GameManager.Mode.LEVELS:
-		_status_label.text = "Level %d / %d" % [GameManager.level, Config.level_count()]
+		_status_label.text = "Level %d" % GameManager.level
 	else:
 		_status_label.text = "Wave 1"
 
 	# Health bar (bottom-center).
 	var bar_x := (w - BAR_W) * 0.5
-	var bar_y := Config.ARENA_SIZE.y - 40.0
-	_hp_fill = _make_rect(Vector2(bar_x, bar_y), Vector2(BAR_W, BAR_H), Config.COL_ALLY)
-	var hp_bg := _make_rect(Vector2(bar_x, bar_y), Vector2(BAR_W, BAR_H), Color(0, 0, 0, 0.45))
-	move_child(hp_bg, 0)
+	var bar_y := Config.ARENA_SIZE.y - 44.0
+	_hp_bar = HpBar.new()
+	_hp_bar.position = Vector2(bar_x, bar_y)
+	_hp_bar.size = Vector2(BAR_W, 20.0)
+	_hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_hp_bar)
 
 	var hint := _make_label(Vector2(0, Config.ARENA_SIZE.y - 20.0), w, HORIZONTAL_ALIGNMENT_CENTER, 15)
 	hint.text = "Move: WASD / Arrows   ·   Fire: automatic   ·   Green arrows = allies   ·   Red arrows = enemies   ·   R: retry"
@@ -58,6 +67,13 @@ func _ready() -> void:
 
 	_build_overlay()
 	_build_picker()
+
+	_boss_label = _make_label(Vector2(0, 92), w, HORIZONTAL_ALIGNMENT_CENTER, 40)
+	_boss_label.add_theme_color_override("font_color", Config.COL_ENEMY)
+	_boss_label.add_theme_constant_override("outline_size", 10)
+	_boss_label.add_theme_color_override("font_outline_color", Color(0.03, 0.05, 0.08))
+	_boss_label.text = "⚠  BOSS WAVE  ⚠"
+	_boss_label.visible = false
 
 	EventBus.selection_started.connect(func(): _picker.visible = true)
 	EventBus.selection_ended.connect(func(): _picker.visible = false)
@@ -68,7 +84,17 @@ func _ready() -> void:
 	EventBus.player_damaged.connect(_on_player_damaged)
 	EventBus.game_over.connect(_on_game_over)
 	EventBus.level_completed.connect(_on_level_completed)
-	EventBus.game_won.connect(_on_game_won)
+	EventBus.boss_wave.connect(_on_boss_wave)
+
+func _on_boss_wave(_w: int) -> void:
+	_boss_label.visible = true
+	_boss_t = 2.5
+
+func _process(delta: float) -> void:
+	if _boss_t > 0.0:
+		_boss_t -= delta
+		if _boss_t <= 0.0:
+			_boss_label.visible = false
 
 func _on_wave_changed(v: int) -> void:
 	# Only meaningful in endless mode.
@@ -77,8 +103,8 @@ func _on_wave_changed(v: int) -> void:
 
 func _on_player_damaged(hp: float, max_hp: float) -> void:
 	var frac := clampf(hp / max_hp, 0.0, 1.0)
-	_hp_fill.size = Vector2(BAR_W * frac, BAR_H)
-	_hp_fill.color = Config.COL_ENEMY.lerp(Config.COL_ALLY, frac)
+	_hp_bar.set_hp(frac, hp < _last_hp)   # flash when it's actual damage
+	_last_hp = hp
 
 # --- outcomes ----------------------------------------------------------------
 func _on_game_over(final_score: int, waves: int) -> void:
@@ -93,11 +119,6 @@ func _on_level_completed(level: int, final_score: int) -> void:
 	_title.text = "LEVEL %d COMPLETE" % level
 	_subtitle.text = "Score %d  ·  Next: Level %d" % [final_score, level + 1]
 	_show_overlay(true, true, true)
-
-func _on_game_won(final_score: int) -> void:
-	_title.text = "YOU WIN!"
-	_subtitle.text = "All %d levels cleared  ·  Score %d" % [Config.level_count(), final_score]
-	_show_overlay(false, true, true)
 
 func _show_overlay(next: bool, retry: bool, menu: bool) -> void:
 	_btn_next.visible = next
