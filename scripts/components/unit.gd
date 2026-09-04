@@ -72,25 +72,26 @@ func _container() -> Node:
 
 # --- dispatch ----------------------------------------------------------------
 func _fire(dir: Vector2, target: Node2D) -> void:
+	var damage_mult := GameManager.get_player_damage_multiplier() if is_in_group("player") else 1.0
 	match _wkind:
-		"railgun": _fire_railgun(dir)
-		"rocket":  _fire_rocket(dir)
-		"sniper":  _fire_sniper(target)
-		"flame":   _fire_flame(dir)
-		_:         _fire_bullet(dir)
+		"railgun": _fire_railgun(dir, damage_mult)
+		"rocket":  _fire_rocket(dir, damage_mult)
+		"sniper":  _fire_sniper(target, damage_mult)
+		"flame":   _fire_flame(dir, damage_mult)
+		_:         _fire_bullet(dir, damage_mult)
 
-func _fire_bullet(dir: Vector2) -> void:
+func _fire_bullet(dir: Vector2, damage_mult: float = 1.0) -> void:
 	var bullet := BulletScene.instantiate()
 	_container().add_child(bullet)
 	bullet.global_position = _muzzle(dir)
-	bullet.setup(dir, _wstats.get("damage", Config.BULLET_DAMAGE))
+	bullet.setup(dir, _wstats.get("damage", Config.BULLET_DAMAGE) * damage_mult)
 	EventBus.shot_fired.emit(global_position)
 
-func _fire_railgun(dir: Vector2) -> void:
+func _fire_railgun(dir: Vector2, damage_mult: float = 1.0) -> void:
 	var muzzle := _muzzle(dir)
 	var rng: float = shoot_range
 	var width: float = _wstats.get("width", 22.0)
-	var dmg: float = _wstats.get("damage", 50.0)
+	var dmg: float = _wstats.get("damage", 50.0) * damage_mult
 	# Damage every enemy within a thin rectangle along the aim ray (piercing).
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if not is_instance_valid(e):
@@ -105,27 +106,27 @@ func _fire_railgun(dir: Vector2) -> void:
 	_spawn_beam(muzzle, muzzle + dir * rng, 6.0, 0.16)
 	EventBus.weapon_fired.emit("railgun", global_position)
 
-func _fire_sniper(target: Node2D) -> void:
+func _fire_sniper(target: Node2D, damage_mult: float = 1.0) -> void:
 	if not is_instance_valid(target):
 		return
 	if target.has_method("take_damage"):
-		target.take_damage(_wstats.get("damage", 150.0))
+		target.take_damage(_wstats.get("damage", 150.0) * damage_mult)
 	var dir := (target.global_position - global_position).normalized()
 	_spawn_beam(_muzzle(dir), target.global_position, 3.0, 0.12)
 	EventBus.weapon_fired.emit("sniper", global_position)
 
-func _fire_rocket(dir: Vector2) -> void:
+func _fire_rocket(dir: Vector2, damage_mult: float = 1.0) -> void:
 	var r := RocketScene.instantiate()
 	_container().add_child(r)
 	r.global_position = _muzzle(dir)
 	r.setup(dir, _wstats.get("speed", 340.0), shoot_range,
-			_wstats.get("blast_radius", 95.0), _wstats.get("blast_damage", 60.0), weapon_color)
+			_wstats.get("blast_radius", 95.0), _wstats.get("blast_damage", 60.0) * damage_mult, weapon_color)
 	EventBus.weapon_fired.emit("rocket", global_position)
 
-func _fire_flame(dir: Vector2) -> void:
+func _fire_flame(dir: Vector2, damage_mult: float = 1.0) -> void:
 	var cone := deg_to_rad(_wstats.get("cone_deg", 42.0))
 	var rng: float = shoot_range
-	var dmg: float = _wstats.get("damage", 7.0)
+	var dmg: float = _wstats.get("damage", 7.0) * damage_mult
 	# Damage everything inside the cone in front of the unit.
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if not is_instance_valid(e):

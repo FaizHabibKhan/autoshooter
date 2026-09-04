@@ -6,7 +6,7 @@
 extends Node
 
 # Gameplay
-signal enemy_killed(world_pos: Vector2, score_value: int)
+signal enemy_killed(world_pos: Vector2, score_value: int, coin_value: int, is_boss: bool)
 signal enemy_hit(world_pos: Vector2)
 signal enemy_spawned(enemy: Node)
 signal ally_collected(total_allies: int)
@@ -15,6 +15,9 @@ signal shot_fired(world_pos: Vector2)
 signal weapon_fired(kind: String, world_pos: Vector2)   # special ally weapons
 signal explosion(world_pos: Vector2)
 signal health_pickup(world_pos: Vector2)
+signal coins_changed(coins: int)
+signal upgrade_changed(id: String, level: int)
+signal shield_started(duration: float)
 
 # Ally weapon selection (pick-on-collect)
 signal selection_started

@@ -135,15 +135,15 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	# Wasteland battleground: tiled dirt, a cracked road cross, lane dashes,
 	# and a world border. (Rocks/rubble/craters are decal sprites; see above.)
-	var world := Config.WORLD_SIZE
+	var world: Vector2 = Config.WORLD_SIZE
 	if _ground != null:
 		draw_texture_rect(_ground, Rect2(Vector2.ZERO, world), true)
 	else:
 		draw_rect(Rect2(Vector2.ZERO, world), Config.COL_BG, true)
 
-	var cx := world.x * 0.5
-	var cy := world.y * 0.5
-	var hw := 150.0
+	var cx: float = world.x * 0.5
+	var cy: float = world.y * 0.5
+	var hw: float = 150.0
 	if _road != null:
 		draw_texture_rect(_road, Rect2(0.0, cy - hw, world.x, hw * 2.0), true)
 		draw_texture_rect(_road, Rect2(cx - hw, 0.0, hw * 2.0, world.y), true)

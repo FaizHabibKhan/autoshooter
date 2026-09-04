@@ -97,19 +97,29 @@ func join_with(chosen_weapon: String) -> void:
 func on_declined() -> void:
 	_declined = true
 
+func take_damage(amount: float) -> void:
+	if GameManager.is_shield_active():
+		return
+	if not is_inside_tree():
+		return
+	# Allies can be hit by enemy contact/explosions; they simply lose their
+	# current momentum and brief flash, but do not hard-crash the run.
+	_anim.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	EventBus.request_hit_flash.emit(global_position, weapon_color)
+
 func _follow(player: Node2D, delta: float) -> void:
 	var allies := get_tree().get_nodes_in_group("allies")
 	var total: int = max(1, allies.size())
 	# Index within a stable, order-sorted list so slots don't jump around.
 	allies.sort_custom(func(a, b): return a._order < b._order)
-	var index := allies.find(self)
+	var index: int = allies.find(self)
 	if index < 0:
 		index = 0
 
-	var spin := Time.get_ticks_msec() / 1000.0 * RING_SPIN
-	var angle := TAU * float(index) / float(total) + spin
-	var radius := Config.ALLY_FOLLOW_DISTANCE + float(max(0, total - 6)) * 3.0
-	var target := player.global_position + Vector2.from_angle(angle) * radius
+	var spin: float = Time.get_ticks_msec() / 1000.0 * RING_SPIN
+	var angle: float = TAU * float(index) / float(total) + spin
+	var radius: float = Config.ALLY_FOLLOW_DISTANCE + float(max(0, total - 6)) * 3.0
+	var target: Vector2 = player.global_position + Vector2.from_angle(angle) * radius
 
 	# Frame-rate independent smoothing toward the slot.
 	var t := 1.0 - exp(-Config.ALLY_FOLLOW_STIFFNESS * delta)

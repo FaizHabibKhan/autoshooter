@@ -25,14 +25,6 @@ func _draw() -> void:
 	var halfw := view.x * 0.5 - Config.INDICATOR_MARGIN
 	var halfh := view.y * 0.5 - Config.INDICATOR_MARGIN
 
-	# --- Allies (green): every uncollected ally that's off-screen ---
-	for a in get_tree().get_nodes_in_group("pickups"):
-		if not is_instance_valid(a):
-			continue
-		var rel: Vector2 = a.global_position - cam_center
-		if _is_offscreen(rel, halfw, halfh):
-			_draw_arrow(rel, center, halfw, halfh, Config.COL_ALLY_UNCOLLECTED)
-
 	# --- Health kits (green): every off-screen kit ---
 	for h in get_tree().get_nodes_in_group("health_kits"):
 		if not is_instance_valid(h):

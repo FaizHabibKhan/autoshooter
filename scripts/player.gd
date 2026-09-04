@@ -17,6 +17,8 @@ func _ready() -> void:
 	body_radius = Config.PLAYER_RADIUS
 	body_color = Config.COL_PLAYER
 	set_weapon("rifle")
+	max_hp = GameManager.get_player_max_hp()
+	hp = max_hp
 	z_index = 2   # draw the hero above enemies/allies
 
 	# On the player layer; masks nothing so enemies never block movement.
@@ -43,8 +45,9 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2.ZERO
 		return
 
-	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	var desired := input * Config.PLAYER_SPEED
+	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var speed_mult: float = GameManager.get_player_speed_multiplier()
+	var desired: Vector2 = input * (Config.PLAYER_SPEED * speed_mult)
 	if input != Vector2.ZERO:
 		velocity = velocity.move_toward(desired, Config.PLAYER_ACCEL * delta)
 	else:
@@ -74,13 +77,15 @@ func _update_sprite(delta: float) -> void:
 	queue_redraw()
 
 func _clamp_to_arena() -> void:
-	var m := Config.ARENA_MARGIN + body_radius
+	var m: float = Config.ARENA_MARGIN + body_radius
 	global_position.x = clampf(global_position.x, m, Config.WORLD_SIZE.x - m)
 	global_position.y = clampf(global_position.y, m, Config.WORLD_SIZE.y - m)
 
 # Called by enemies on contact.
 func take_damage(amount: float) -> void:
 	if not GameManager.is_playing():
+		return
+	if GameManager.is_shield_active():
 		return
 	hp = max(0.0, hp - amount)
 	_hit_flash = 1.0
@@ -104,3 +109,6 @@ func _draw() -> void:
 	# Team-colored glow + drop shadow so the hero always pops off the floor.
 	draw_circle(Vector2.ZERO, body_radius + 10.0, Color(Config.COL_PLAYER, 0.20))
 	draw_circle(Vector2(0, body_radius * 0.5), body_radius * 0.9, Color(0, 0, 0, 0.22))
+	if GameManager.is_shield_active():
+		draw_arc(Vector2.ZERO, body_radius + 19.0, 0.0, TAU, 48, Color("8df0ff", 1.0), 5.0, true)
+		draw_arc(Vector2.ZERO, body_radius + 25.0, -PI * 0.5, PI * 1.15, 36, Color("d8ffff", 0.75), 3.0, true)

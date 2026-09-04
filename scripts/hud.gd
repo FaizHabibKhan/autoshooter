@@ -5,10 +5,16 @@
 # =============================================================================
 extends CanvasLayer
 
+var _menu_button: Button
+var _pause_panel: Control
+var _quit_dialog: Control
+var _shield_label: Label
+
 var _score_label: Label
 var _status_label: Label      # "Wave N" (endless) or "Level N" (levels)
 var _objective_label: Label   # level countdown; empty in endless
 var _ally_label: Label
+var _coins_label: Label
 var _hp_bar: Control
 var _last_hp: float = Config.PLAYER_MAX_HP
 
@@ -34,7 +40,8 @@ const BAR_H := 16.0
 
 func _ready() -> void:
 	layer = 10
-	var w := Config.ARENA_SIZE.x
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	var w: float = Config.ARENA_SIZE.x
 
 	_score_label = _make_label(Vector2(20, 14), w, HORIZONTAL_ALIGNMENT_LEFT, 26)
 	_score_label.text = "Score: 0"
@@ -46,6 +53,12 @@ func _ready() -> void:
 	_ally_label = _make_label(Vector2(-20, 14), w, HORIZONTAL_ALIGNMENT_RIGHT, 26)
 	_ally_label.text = "Allies: 0"
 
+	_coins_label = _make_label(Vector2(20, 52), w, HORIZONTAL_ALIGNMENT_LEFT, 22)
+	_coins_label.text = "Coins: 0"
+	_shield_label = _make_label(Vector2(20, 78), w, HORIZONTAL_ALIGNMENT_LEFT, 19)
+	_shield_label.modulate = Color("8df0ff")
+	_shield_label.text = ""
+
 	# Mode-specific initial text.
 	if GameManager.mode == GameManager.Mode.LEVELS:
 		_status_label.text = "Level %d" % GameManager.level
@@ -53,8 +66,8 @@ func _ready() -> void:
 		_status_label.text = "Wave 1"
 
 	# Health bar (bottom-center).
-	var bar_x := (w - BAR_W) * 0.5
-	var bar_y := Config.ARENA_SIZE.y - 44.0
+	var bar_x: float = (w - BAR_W) * 0.5
+	var bar_y: float = Config.ARENA_SIZE.y - 44.0
 	_hp_bar = HpBar.new()
 	_hp_bar.position = Vector2(bar_x, bar_y)
 	_hp_bar.size = Vector2(BAR_W, 20.0)
@@ -67,6 +80,7 @@ func _ready() -> void:
 
 	_build_overlay()
 	_build_picker()
+	_build_pause_menu()
 
 	_boss_label = _make_label(Vector2(0, 92), w, HORIZONTAL_ALIGNMENT_CENTER, 40)
 	_boss_label.add_theme_color_override("font_color", Config.COL_ENEMY)
@@ -78,6 +92,7 @@ func _ready() -> void:
 	EventBus.selection_started.connect(func(): _picker.visible = true)
 	EventBus.selection_ended.connect(func(): _picker.visible = false)
 	EventBus.score_changed.connect(func(s): _score_label.text = "Score: %d" % s)
+	EventBus.coins_changed.connect(func(c): _coins_label.text = "Coins: %d" % c)
 	EventBus.wave_changed.connect(_on_wave_changed)
 	EventBus.objective_changed.connect(func(t): _objective_label.text = t)
 	EventBus.ally_collected.connect(func(t): _ally_label.text = "Allies: %d / %d" % [t, Config.ALLY_MAX])
@@ -85,16 +100,24 @@ func _ready() -> void:
 	EventBus.game_over.connect(_on_game_over)
 	EventBus.level_completed.connect(_on_level_completed)
 	EventBus.boss_wave.connect(_on_boss_wave)
+	EventBus.shield_started.connect(func(_d): _update_shield_label())
 
 func _on_boss_wave(_w: int) -> void:
 	_boss_label.visible = true
 	_boss_t = 2.5
 
 func _process(delta: float) -> void:
+	_update_shield_label()
 	if _boss_t > 0.0:
 		_boss_t -= delta
 		if _boss_t <= 0.0:
 			_boss_label.visible = false
+
+func _update_shield_label() -> void:
+	if GameManager.is_shield_active():
+		_shield_label.text = "Shield -%ds" % ceili(GameManager.get_shield_time_remaining())
+	else:
+		_shield_label.text = ""
 
 func _on_wave_changed(v: int) -> void:
 	# Only meaningful in endless mode.
@@ -188,8 +211,12 @@ func _build_overlay() -> void:
 	_btn_retry.pressed.connect(func(): GameManager.retry())
 	row.add_child(_btn_retry)
 
+	var btn_upgrades := _make_button("Upgrades")
+	btn_upgrades.pressed.connect(func(): GameManager.go_to_menu("upgrades"))
+	row.add_child(btn_upgrades)
+
 	_btn_menu = _make_button("Menu")
-	_btn_menu.pressed.connect(func(): GameManager.go_to_menu())
+	_btn_menu.pressed.connect(func(): GameManager.go_to_menu("main"))
 	row.add_child(_btn_menu)
 
 func _make_button(text: String) -> Button:
@@ -198,6 +225,88 @@ func _make_button(text: String) -> Button:
 	b.custom_minimum_size = Vector2(150, 48)
 	b.add_theme_font_size_override("font_size", 20)
 	return b
+
+func _build_pause_menu() -> void:
+	_menu_button = Button.new()
+	_menu_button.text = "☰"
+	_menu_button.tooltip_text = "Pause menu"
+	_menu_button.position = Vector2(20, Config.ARENA_SIZE.y - 78.0)
+	_menu_button.custom_minimum_size = Vector2(52, 52)
+	_menu_button.add_theme_font_size_override("font_size", 28)
+	_menu_button.pressed.connect(_open_pause_menu)
+	add_child(_menu_button)
+
+	_pause_panel = _make_modal_panel()
+	var pause_box := _modal_box(_pause_panel, "PAUSED")
+	var continue_button := _make_button("Continue")
+	continue_button.pressed.connect(_close_pause_menu)
+	pause_box.add_child(continue_button)
+	var quit_button := _make_button("Quit")
+	quit_button.pressed.connect(_open_quit_dialog)
+	pause_box.add_child(quit_button)
+
+	_quit_dialog = _make_modal_panel()
+	var quit_box := _modal_box(_quit_dialog, "QUIT RUN?")
+	var question := Label.new()
+	question.text = "Your current run will be lost."
+	question.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	question.add_theme_font_size_override("font_size", 19)
+	quit_box.add_child(question)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 12)
+	quit_box.add_child(buttons)
+	var cancel_button := _make_button("Cancel")
+	cancel_button.pressed.connect(func(): _quit_dialog.visible = false)
+	buttons.add_child(cancel_button)
+	var confirm_button := _make_button("Quit")
+	confirm_button.pressed.connect(_confirm_quit)
+	buttons.add_child(confirm_button)
+
+func _make_modal_panel() -> Control:
+	var panel := Control.new()
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.visible = false
+	add_child(panel)
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0, 0, 0, 0.62)
+	panel.add_child(dim)
+	return panel
+
+func _modal_box(panel: Control, title_text: String) -> VBoxContainer:
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.add_child(center)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 14)
+	center.add_child(box)
+	var title := Label.new()
+	title.text = title_text
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 40)
+	box.add_child(title)
+	return box
+
+func _open_pause_menu() -> void:
+	if not GameManager.is_playing() or _quit_dialog.visible:
+		return
+	get_tree().paused = true
+	_pause_panel.visible = true
+
+func _close_pause_menu() -> void:
+	_pause_panel.visible = false
+	get_tree().paused = false
+
+func _open_quit_dialog() -> void:
+	_quit_dialog.visible = true
+
+func _confirm_quit() -> void:
+	_quit_dialog.visible = false
+	_pause_panel.visible = false
+	get_tree().paused = false
+	GameManager.go_to_menu("main")
 
 # --- weapon picker -----------------------------------------------------------
 func _build_picker() -> void:
@@ -253,6 +362,15 @@ func _build_picker() -> void:
 	vbox.add_child(hint)
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_P:
+		if _quit_dialog.visible:
+			return
+		if _pause_panel.visible:
+			_close_pause_menu()
+		else:
+			_open_pause_menu()
+		get_viewport().set_input_as_handled()
+		return
 	if not GameManager.is_choosing():
 		return
 	if event is InputEventKey and event.pressed and not event.echo:

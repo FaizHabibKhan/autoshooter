@@ -1,7 +1,7 @@
 # =============================================================================
-#  menu.gd  —  title screen on the wasteland battleground: tiled ground, a road,
-#  decorative animated soldiers/zombies, a bold outlined title, and the mode
-#  buttons (Endless + 10 levels). Built in code.
+#  menu.gd  —  title screen on the wasteland battleground with a dedicated
+#  upgrades page. Main menu and upgrades share the same background + deco, but
+#  the upgrades page opens as a separate screen before/after battle.
 # =============================================================================
 extends Control
 
@@ -12,13 +12,37 @@ var _cards: Array = []          # 5 level buttons
 var _view_center: int = 1       # center level shown in the window
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	_ground = load("res://art/ground_tile.png")
 	_road = load("res://art/road_tile.png")
 	_vignette = load("res://art/vignette.png")
+	EventBus.upgrade_changed.connect(_on_upgrade_changed)
+	EventBus.coins_changed.connect(_on_coins_changed)
+	_build_page()
+	queue_redraw()
 
-	# Decorative characters (animate on their own; drawn above the background).
+func _on_upgrade_changed(_id: String, _level: int) -> void:
+	if GameManager.menu_page == "upgrades":
+		_build_page()
+
+func _on_coins_changed(_coins: int) -> void:
+	if GameManager.menu_page == "upgrades":
+		_build_page()
+
+func _clear_page() -> void:
+	for child in get_children():
+		child.queue_free()
+
+func _build_page() -> void:
+	_clear_page()
+	if GameManager.menu_page == "upgrades":
+		_build_upgrades_page()
+		return
+	_build_main_page()
+
+func _build_main_page() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+
 	_deco("ally_sniper", Vector2(150, 300), 1.0, -0.25)
 	_deco("ally_railgun", Vector2(250, 470), 1.15, 0.15)
 	_deco("player", Vector2(576, 500), 1.7, 0.0)
@@ -28,7 +52,6 @@ func _ready() -> void:
 	_deco("zombie", Vector2(880, 150), 0.9, PI + 0.3)
 	_deco("zombie", Vector2(120, 130), 0.95, 0.2)
 
-	# --- UI (title + buttons), centered ---
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
@@ -56,14 +79,33 @@ func _ready() -> void:
 	subtitle.add_theme_color_override("font_outline_color", Color(0.03, 0.05, 0.08))
 	vbox.add_child(subtitle)
 
-	vbox.add_child(_spacer(14))
+	var coin_label := Label.new()
+	coin_label.text = "Coins: %d" % GameManager.coins
+	coin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	coin_label.add_theme_font_size_override("font_size", 18)
+	coin_label.modulate = Color(1.0, 0.85, 0.35, 1.0)
+	vbox.add_child(coin_label)
+
+	vbox.add_child(_spacer(12))
+
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 16)
+	vbox.add_child(buttons)
+
+	var upgrades_btn := Button.new()
+	upgrades_btn.text = "UPGRADES"
+	upgrades_btn.custom_minimum_size = Vector2(220, 56)
+	upgrades_btn.add_theme_font_size_override("font_size", 24)
+	upgrades_btn.pressed.connect(func(): GameManager.go_to_menu("upgrades"))
+	buttons.add_child(upgrades_btn)
 
 	var endless := Button.new()
 	endless.text = "▶  ENDLESS MODE"
 	endless.custom_minimum_size = Vector2(340, 64)
 	endless.add_theme_font_size_override("font_size", 28)
 	endless.pressed.connect(func(): GameManager.start_endless())
-	vbox.add_child(endless)
+	buttons.add_child(endless)
 
 	if GameManager.endless_best > 0:
 		var best := Label.new()
@@ -82,7 +124,6 @@ func _ready() -> void:
 	levels_label.add_theme_color_override("font_outline_color", Color(0.03, 0.05, 0.08))
 	vbox.add_child(levels_label)
 
-	# Windowed level picker: 2 previous · current · 2 upcoming.
 	_view_center = GameManager.campaign_level
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -112,7 +153,134 @@ func _ready() -> void:
 	row.add_child(right)
 
 	_refresh_levels()
-	queue_redraw()
+
+func _build_upgrades_page() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(center)
+
+	var wrap := VBoxContainer.new()
+	wrap.alignment = BoxContainer.ALIGNMENT_CENTER
+	wrap.add_theme_constant_override("separation", 14)
+	center.add_child(wrap)
+
+	var title := Label.new()
+	title.text = "UPGRADES"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 48)
+	title.add_theme_color_override("font_color", Config.COL_PLAYER)
+	title.add_theme_constant_override("outline_size", 10)
+	title.add_theme_color_override("font_outline_color", Color(0.03, 0.05, 0.08))
+	wrap.add_child(title)
+
+	var coin_label := Label.new()
+	coin_label.text = "Coins: %d" % GameManager.coins
+	coin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	coin_label.add_theme_font_size_override("font_size", 20)
+	coin_label.modulate = Color(1.0, 0.85, 0.35, 1.0)
+	wrap.add_child(coin_label)
+
+	var list := VBoxContainer.new()
+	list.alignment = BoxContainer.ALIGNMENT_CENTER
+	list.add_theme_constant_override("separation", 12)
+	wrap.add_child(list)
+
+	for id in ["damage", "health", "magnet", "shield", "speed"]:
+		var row := HBoxContainer.new()
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		row.add_theme_constant_override("separation", 16)
+		list.add_child(row)
+
+		var info := VBoxContainer.new()
+		info.alignment = BoxContainer.ALIGNMENT_CENTER
+		info.custom_minimum_size = Vector2(180, 0)
+		row.add_child(info)
+
+		var label := Label.new()
+		label.text = _upgrade_title(id)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		label.add_theme_font_size_override("font_size", 24)
+		info.add_child(label)
+
+		var desc := Label.new()
+		desc.text = _upgrade_desc(id)
+		desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		desc.modulate = Color(1, 1, 1, 0.75)
+		desc.add_theme_font_size_override("font_size", 14)
+		info.add_child(desc)
+
+		var cells := _make_cells(id)
+		row.add_child(cells)
+
+		var buy := Button.new()
+		buy.custom_minimum_size = Vector2(180, 44)
+		buy.add_theme_font_size_override("font_size", 16)
+		buy.pressed.connect(func(): _buy_upgrade(id))
+		row.add_child(buy)
+
+		var current_level := GameManager.get_upgrade_level(id)
+		if current_level >= Config.UPGRADE_CAPS.get(id, Config.UPGRADE_LEVELS):
+			buy.text = "MAXED"
+			buy.disabled = true
+		else:
+			buy.text = "BUY %d" % GameManager.get_upgrade_cost(id)
+			buy.disabled = GameManager.coins < GameManager.get_upgrade_cost(id)
+
+		var level_label := Label.new()
+		level_label.text = "%d / %d" % [current_level, Config.UPGRADE_LEVELS]
+		level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		level_label.add_theme_font_size_override("font_size", 13)
+		level_label.modulate = Color(1, 1, 1, 0.7)
+		row.add_child(level_label)
+
+	var footer := HBoxContainer.new()
+	footer.alignment = BoxContainer.ALIGNMENT_CENTER
+	footer.add_theme_constant_override("separation", 18)
+	wrap.add_child(footer)
+
+	var back := Button.new()
+	back.text = "BACK TO MENU"
+	back.custom_minimum_size = Vector2(180, 50)
+	back.add_theme_font_size_override("font_size", 18)
+	back.pressed.connect(func(): GameManager.go_to_menu("main"))
+	footer.add_child(back)
+
+func _make_cells(id: String) -> HBoxContainer:
+	var level := GameManager.get_upgrade_level(id)
+	var cells := HBoxContainer.new()
+	cells.alignment = BoxContainer.ALIGNMENT_CENTER
+	cells.add_theme_constant_override("separation", 8)
+	for i in Config.UPGRADE_LEVELS:
+		var cell := ColorRect.new()
+		cell.custom_minimum_size = Vector2(18, 18)
+		cell.color = Color(0.12, 0.14, 0.18, 1.0) if i >= level else Color(0.65, 0.85, 1.0, 1.0)
+		if i < level:
+			cell.color = Color(0.42, 0.88, 0.75, 1.0)
+		cells.add_child(cell)
+	return cells
+
+func _buy_upgrade(id: String) -> void:
+	if GameManager.buy_upgrade(id):
+		_build_upgrades_page()
+
+func _upgrade_title(id: String) -> String:
+	match id:
+		"damage": return "Damage"
+		"health": return "Health"
+		"magnet": return "Magnet"
+		"shield": return "Shield"
+		_: return "Speed"
+
+func _upgrade_desc(id: String) -> String:
+	match id:
+		"damage": return "More shot power"
+		"health": return "Higher max HP"
+		"magnet": return "Collect nearby coins"
+		"shield": return "Longer invincibility"
+		_: return "Faster movement"
 
 func _shift(dir: int) -> void:
 	_view_center = clampi(_view_center + dir, 1, GameManager.campaign_level)
@@ -135,7 +303,7 @@ func _refresh_levels() -> void:
 		b.visible = true
 		var unlocked := lvl <= GameManager.campaign_level
 		b.disabled = not unlocked
-		b.text = str(lvl)   # upcoming levels show dimmed + disabled
+		b.text = str(lvl)
 		b.modulate = Color(1, 1, 1, 1) if is_center else Color(1, 1, 1, 0.75 if unlocked else 0.4)
 
 func _deco(kind: String, pos: Vector2, sc: float, rot: float) -> void:

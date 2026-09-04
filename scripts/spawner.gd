@@ -11,10 +11,12 @@ extends Node
 const EnemyScene := preload("res://scenes/Enemy.tscn")
 const AllyScene := preload("res://scenes/Ally.tscn")
 const HealthKitScene := preload("res://scenes/HealthKit.tscn")
+const ShieldKitScript := preload("res://scripts/shield_kit.gd")
 
 var _spawn_t: float = 0.4
 var _pickup_t: float = Config.PICKUP_FIRST_DELAY
 var _health_t: float = Config.HEALTH_KIT_FIRST_DELAY
+var _shield_t: float = Config.SHIELD_KIT_FIRST_DELAY
 
 # endless wave state
 var _wave_active: bool = false
@@ -50,6 +52,11 @@ func _physics_process(delta: float) -> void:
 	if _health_t <= 0.0:
 		_try_spawn_health()
 		_health_t = Config.HEALTH_KIT_INTERVAL
+
+	_shield_t -= delta
+	if _shield_t <= 0.0:
+		_try_spawn_shield()
+		_shield_t = Config.SHIELD_KIT_INTERVAL
 
 # --- ENDLESS -----------------------------------------------------------------
 func _start_wave(w: int) -> void:
@@ -95,6 +102,7 @@ func _spawn_boss(w: int) -> void:
 	e.speed = Config.BOSS_SPEED
 	e.contact_damage = Config.BOSS_CONTACT_DAMAGE
 	e.score_value = Config.BOSS_SCORE
+	e.coin_value = int(max(20.0, e.hp * 0.14 * Config.BOSS_COIN_BONUS))
 	e.position = _ring_point()
 	container.add_child(e)
 
@@ -123,17 +131,27 @@ func _spawn_batch(count: int, hp: float, speed: float) -> int:
 	var container := get_tree().get_first_node_in_group("enemy_container")
 	if container == null:
 		return 0
-	var alive := get_tree().get_nodes_in_group("enemies").size()
-	var allowed := Config.ENEMY_MAX_ALIVE - alive
+	var alive: int = get_tree().get_nodes_in_group("enemies").size()
+	var allowed: int = Config.ENEMY_MAX_ALIVE - alive
 	count = min(count, allowed)
 	if count <= 0:
 		return 0
 	for i in count:
 		var e := EnemyScene.instantiate()
-		e.hp = hp
-		e._max_hp = hp
-		e.speed = speed
-		e.score_value = Config.ENEMY_TOUCH_SCORE
+		var rand := RandomNumberGenerator.new()
+		rand.randomize()
+		var variant := "walker"
+		if GameManager.wave >= Config.SPITTER_SPAWN_MIN_WAVE and rand.randf() < Config.ENEMY_VARIANT_CHANCE_SPITTER:
+			variant = "spitter"
+		elif GameManager.wave >= Config.EXPLODER_SPAWN_MIN_WAVE and rand.randf() < Config.ENEMY_VARIANT_CHANCE_EXPLODER:
+			variant = "exploder"
+		e.variant = variant
+		e.hp = hp * (1.0 + (0.18 if variant == "exploder" else 0.0) + (0.12 if variant == "spitter" else 0.0))
+		e._max_hp = e.hp
+		e.speed = speed * (1.0 + (0.12 if variant == "spitter" else 0.0))
+		e.score_value = Config.ENEMY_TOUCH_SCORE + (10 if variant == "exploder" else 0) + (8 if variant == "spitter" else 0)
+		e.contact_damage = Config.ENEMY_CONTACT_DAMAGE * (1.0 + (0.35 if variant == "exploder" else 0.0) + (0.2 if variant == "spitter" else 0.0))
+		e.coin_value = int(max(4, ceil(hp * 0.15 + e.score_value * 0.8)))
 		e.position = _ring_point()
 		container.add_child(e)
 	return count
@@ -165,11 +183,21 @@ func _try_spawn_health() -> void:
 	kit.position = _random_inside()
 	container.add_child(kit)
 
+func _try_spawn_shield() -> void:
+	var container := get_tree().get_first_node_in_group("pickup_container")
+	if container == null:
+		return
+	if get_tree().get_nodes_in_group("shield_kits").size() >= Config.SHIELD_KIT_MAX:
+		return
+	var kit := ShieldKitScript.new()
+	kit.position = _random_inside()
+	container.add_child(kit)
+
 func _ring_point() -> Vector2:
 	var player: Node2D = get_tree().get_first_node_in_group("player")
 	var center: Vector2 = player.global_position if player != null else Config.WORLD_SIZE * 0.5
-	var ang := randf() * TAU
-	var r := Config.ARENA_SIZE.length() * 0.5 + Config.SPAWN_RING_PADDING
+	var ang: float = randf() * TAU
+	var r: float = Config.ARENA_SIZE.length() * 0.5 + Config.SPAWN_RING_PADDING
 	return center + Vector2.from_angle(ang) * r
 
 func _random_inside() -> Vector2:

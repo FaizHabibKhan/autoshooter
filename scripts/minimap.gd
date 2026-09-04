@@ -36,11 +36,6 @@ func _draw() -> void:
 		if is_instance_valid(e):
 			draw_circle(_to_mm(e.global_position, origin, scale), 2.0, Color(Config.COL_ENEMY, 0.9))
 
-	# Uncollected allies (yellow) — the ones you want to go find.
-	for a in get_tree().get_nodes_in_group("pickups"):
-		if is_instance_valid(a):
-			draw_circle(_to_mm(a.global_position, origin, scale), 3.0, Config.COL_ALLY_UNCOLLECTED)
-
 	# Collected allies (colored by their weapon).
 	for a in get_tree().get_nodes_in_group("allies"):
 		if is_instance_valid(a):

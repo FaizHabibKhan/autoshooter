@@ -41,6 +41,41 @@ const PLAYER_RADIUS := 16.0
 const PLAYER_MAX_HP := 100.0
 const PLAYER_ACCEL := 2200.0            # higher = snappier movement
 const PLAYER_FRICTION := 2600.0
+const PLAYER_SPEED_UPGRADE := 0.12      # % speed boost per upgrade level
+const PLAYER_HEALTH_UPGRADE := 0.25     # % max HP boost per upgrade level
+const PLAYER_DAMAGE_UPGRADE := 0.20     # % damage boost per upgrade level
+
+# --- Economy / upgrades ------------------------------------------------------
+const COIN_VALUE_BASE := 12
+const COIN_DROP_BONUS_PER_HP := 0.12
+const SHIELD_KIT_RADIUS := 24.0
+const SHIELD_KIT_INTERVAL := 36.0
+const SHIELD_KIT_FIRST_DELAY := 18.0
+const SHIELD_KIT_MAX := 1
+const SHIELD_DURATION_BASE := 8.0
+const SHIELD_DURATION_PER_LEVEL := 3.0
+const MAGNET_RADIUS_PER_LEVEL := 80.0
+const UPGRADE_LEVELS := 8
+const UPGRADE_COSTS := {
+	"damage": [350, 700, 1400, 2900, 6100, 13000, 27000, 56000],
+	"health": [500, 1000, 5000, 10000, 20000, 50000, 100000, 250000],
+	"magnet": [400, 850, 1700, 3500, 7500, 15500, 32000, 65000],
+	"shield": [450, 900, 2200, 5000, 12000, 26000, 55000, 120000],
+	"speed": [375, 800, 1600, 3300, 7000, 15000, 30000, 62000],
+}
+const UPGRADE_CAPS := {
+	"damage": 8,
+	"health": 8,
+	"magnet": 8,
+	"shield": 8,
+	"speed": 8,
+}
+
+func get_upgrade_cost_for_level(id: String, level: int) -> int:
+	var costs: Array = UPGRADE_COSTS.get(id, [])
+	if level < 0 or level >= costs.size():
+		return 0
+	return int(costs[level])
 
 # --- Shooting (shared by player + allies) ------------------------------------
 const SHOOT_RANGE := 360.0
@@ -86,7 +121,7 @@ const ENEMY_ATTACK_COOLDOWN := 0.6
 const ENEMY_SEPARATION := 26.0          # personal space to avoid perfect stacking
 const ENEMY_TOUCH_SCORE := 10
 const ENEMY_MAX_ALIVE := 60             # hard cap on concurrent enemies (keeps big
-                                        # stages smooth; bump to 75 for denser swarms)
+										# stages smooth; bump to 75 for denser swarms)
 
 # --- Waves / spawning --------------------------------------------------------
 const WAVE_DURATION := 18.0             # seconds per wave
@@ -107,6 +142,19 @@ const HEALTH_KIT_HEAL := 35.0           # HP restored per kit
 const HEALTH_KIT_RADIUS := 34.0         # pickup radius
 const COL_HEALTH := Color("6bff9e")
 
+# --- Enemy variants -----------------------------------------------------------
+const ENEMY_VARIANT_CHANCE_SPITTER := 0.18
+const ENEMY_VARIANT_CHANCE_EXPLODER := 0.12
+const SPITTER_SPAWN_MIN_WAVE := 3
+const EXPLODER_SPAWN_MIN_WAVE := 4
+const SPITTER_RANGE := 260.0
+const SPITTER_DAMAGE := 18.0
+const SPITTER_COOLDOWN := 2.1
+const EXPLODER_RADIUS := 38.0
+const EXPLODER_DAMAGE := 26.0
+const EXPLODER_SELF_DAMAGE := 30.0
+const EXPLODER_IMPACT_DISCHARGE := 0.9
+
 # --- Sprites -----------------------------------------------------------------
 # On-screen scale for the 128px character frames. Tune to taste.
 const PLAYER_SPRITE_SCALE := 0.95
@@ -121,19 +169,22 @@ const INDICATOR_MAX_ENEMIES := 12      # cap enemy arrows to avoid clutter
 # --- Boss ---------------------------------------------------------------------
 const BOSS_EVERY := 10                  # every Nth endless wave is a boss wave
 const BOSS_BASE_HP := 1400.0
-const BOSS_HP_PER_TIER := 0.35          # +35% per boss tier (wave 10, 20, 30…)
+const BOSS_HP_PER_TIER := 0.55          # +55% per boss tier (wave 10, 20, 30…)
 const BOSS_SPEED := 46.0
 const BOSS_CONTACT_DAMAGE := 30.0
 const BOSS_SCALE := 2.4                 # sprite/ body multiplier
 const BOSS_SCORE := 500
 const BOSS_MINIONS := 6                 # minions that trickle in during a boss wave
+const BOSS_SPIT_COOLDOWN := 3.2         # seconds between boss spit attacks
+const BOSS_SPAWN_RADIUS := 60.0
+const BOSS_COIN_BONUS := 3.4            # higher-health bosses drop a lot more coins
 
 func is_boss_wave(w: int) -> bool:
 	return w % BOSS_EVERY == 0
 
 func boss_health(w: int) -> float:
 	var tier := int(w / BOSS_EVERY)      # 1,2,3… for waves 10,20,30
-	return BOSS_BASE_HP * (1.0 + BOSS_HP_PER_TIER * float(tier - 1))
+	return BOSS_BASE_HP * (1.0 + BOSS_HP_PER_TIER * float(maxi(0, tier - 1)))
 
 # --- ENDLESS: wave-based (dynamic formulas) ----------------------------------
 # Wave 1 = 10 enemies, +5 each wave; enemies get healthier/faster; spawns are
